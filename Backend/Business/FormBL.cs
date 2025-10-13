@@ -1,0 +1,317 @@
+﻿using Backend.Models.Nosql;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using Backend.DataAccess;
+using Backend.DTOs.Form;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+
+namespace Backend.Business;
+
+public class FormBL : IFormBL
+{
+    private readonly IFormDAL _formDAL;
+    private readonly IResponseDAL _responseDAL;
+    private readonly ILogger<FormBL> _logger;
+
+    public FormBL(IFormDAL formDAL, IResponseDAL responseDAL, ILogger<FormBL> logger)
+    {
+        _formDAL = formDAL;
+        _responseDAL = responseDAL;
+        _logger = logger;
+    }
+
+    public async Task<FormDetailDto> CreateFormAsync(CreateFormDto createFormDto, Guid creatorId)
+    {
+        try
+        {
+            _logger.LogInformation($"Creating form: {createFormDto.Title}");
+
+            // Validate input
+            if (string.IsNullOrWhiteSpace(createFormDto.Title))
+            {
+                throw new ArgumentException("Form title is required");
+            }
+
+            if (createFormDto.Questions == null || !createFormDto.Questions.Any())
+            {
+                throw new ArgumentException("At least one question is required");
+            }
+
+            // Validate options for select type questions
+            foreach (var question in createFormDto.Questions)
+            {
+                if ((question.Type == "singleSelect" || question.Type == "multiSelect") 
+                    && (question.Options == null || !question.Options.Any()))
+                {
+                    throw new ArgumentException($"Options are required for {question.Type} questions");
+                }
+            }
+
+            // Create form model
+            var form = new Form
+            {
+                Title = createFormDto.Title,
+                Description = createFormDto.Description,
+                HeaderTitle = createFormDto.HeaderTitle,
+                HeaderDescription = createFormDto.HeaderDescription,
+                CreatedBy = creatorId,
+                Questions = createFormDto.Questions.Select((q, index) => new Question
+                {
+                    QuestionId = !string.IsNullOrEmpty(q.QuestionId) ? q.QuestionId : Guid.NewGuid().ToString(),
+                    Label = q.Label,
+                    Description = q.Description,
+                    Type = q.Type,
+                    Required = q.Required,
+                    Options = q.Options?.Select(o => new Option
+                    {
+                        OptionId = !string.IsNullOrEmpty(o.OptionId) ? o.OptionId : Guid.NewGuid().ToString(),
+                        Label = o.Label
+                    }).ToList(),
+                    Order = q.Order > 0 ? q.Order : index + 1
+                }).ToList()
+            };
+
+            var createdForm = await _formDAL.CreateFormAsync(form);
+
+            return MapToFormDetailDto(createdForm);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating form");
+            throw;
+        }
+    }
+
+    public async Task<FormListDto> GetFormsAsync(int page, int pageSize, string userRole, Guid userId)
+    {
+        try
+        {
+            // Learners only see published forms, admins see all
+            bool? isPublished = userRole.ToLower() == "learner" ? true : null;
+
+            var forms = await _formDAL.GetAllFormsAsync(page, pageSize, isPublished);
+            var totalCount = await _formDAL.GetFormCountAsync(isPublished);
+
+            var formItems = forms.Select(f => new FormItemDto
+            {
+                FormId = f.FormId,
+                Title = f.Title,
+                Description = f.Description,
+                QuestionCount = f.Questions?.Count ?? 0,
+                IsPublished = f.IsPublished,
+                CreatedAt = f.CreatedAt,
+                CreatedBy = f.CreatedBy
+            }).ToList();
+
+            return new FormListDto
+            {
+                Forms = formItems,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting forms");
+            throw;
+        }
+    }
+
+    public async Task<FormDetailDto> GetFormByIdAsync(string formId)
+    {
+        try
+        {
+            var form = await _formDAL.GetFormByIdAsync(formId);
+
+            if (form == null)
+            {
+                throw new KeyNotFoundException($"Form not found: {formId}");
+            }
+
+            return MapToFormDetailDto(form);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting form: {formId}");
+            throw;
+        }
+    }
+
+    public async Task<FormDetailDto> UpdateFormAsync(string formId, UpdateFormDto updateFormDto, Guid userId)
+    {
+        try
+        {
+            var existingForm = await _formDAL.GetFormByIdAsync(formId);
+
+            if (existingForm == null)
+            {
+                throw new KeyNotFoundException($"Form not found: {formId}");
+            }
+
+            // Check if user is the creator
+            if (existingForm.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Only the form creator can update it");
+            }
+
+            // Check if form has responses
+            var responseCount = await _responseDAL.GetResponseCountByFormIdAsync(formId);
+            if (responseCount > 0 && existingForm.IsPublished)
+            {
+                throw new InvalidOperationException("Cannot update published form with responses");
+            }
+
+            // Validate options for select type questions
+            foreach (var question in updateFormDto.Questions)
+            {
+                if ((question.Type == "singleSelect" || question.Type == "multiSelect") 
+                    && (question.Options == null || !question.Options.Any()))
+                {
+                    throw new ArgumentException($"Options are required for {question.Type} questions");
+                }
+            }
+
+            // Update form
+            existingForm.Title = updateFormDto.Title;
+            existingForm.Description = updateFormDto.Description;
+            existingForm.HeaderTitle = updateFormDto.HeaderTitle;
+            existingForm.HeaderDescription = updateFormDto.HeaderDescription;
+            existingForm.Questions = updateFormDto.Questions.Select((q, index) => new Question
+            {
+                QuestionId = !string.IsNullOrEmpty(q.QuestionId) ? q.QuestionId : Guid.NewGuid().ToString(),
+                Label = q.Label,
+                Description = q.Description,
+                Type = q.Type,
+                Required = q.Required,
+                Options = q.Options?.Select(o => new Option
+                {
+                    OptionId = !string.IsNullOrEmpty(o.OptionId) ? o.OptionId : Guid.NewGuid().ToString(),
+                    Label = o.Label
+                }).ToList(),
+                Order = q.Order > 0 ? q.Order : index + 1
+            }).ToList();
+
+            var updatedForm = await _formDAL.UpdateFormAsync(formId, existingForm);
+
+            return MapToFormDetailDto(updatedForm!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error updating form: {formId}");
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteFormAsync(string formId, Guid userId)
+    {
+        try
+        {
+            var form = await _formDAL.GetFormByIdAsync(formId);
+
+            if (form == null)
+            {
+                throw new KeyNotFoundException($"Form not found: {formId}");
+            }
+
+            // Check if user is the creator
+            if (form.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Only the form creator can delete it");
+            }
+
+            return await _formDAL.SoftDeleteFormAsync(formId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting form: {formId}");
+            throw;
+        }
+    }
+
+    public async Task<bool> PublishFormAsync(string formId, Guid userId)
+    {
+        try
+        {
+            var form = await _formDAL.GetFormByIdAsync(formId);
+
+            if (form == null)
+            {
+                throw new KeyNotFoundException($"Form not found: {formId}");
+            }
+
+            // Check if user is the creator
+            if (form.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Only the form creator can publish it");
+            }
+
+            return await _formDAL.PublishFormAsync(formId, userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error publishing form: {formId}");
+            throw;
+        }
+    }
+
+    public async Task<bool> UnpublishFormAsync(string formId, Guid userId)
+    {
+        try
+        {
+            var form = await _formDAL.GetFormByIdAsync(formId);
+
+            if (form == null)
+            {
+                throw new KeyNotFoundException($"Form not found: {formId}");
+            }
+
+            // Check if user is the creator
+            if (form.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Only the form creator can unpublish it");
+            }
+
+            return await _formDAL.UnpublishFormAsync(formId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error unpublishing form: {formId}");
+            throw;
+        }
+    }
+
+    private FormDetailDto MapToFormDetailDto(Form form)
+    {
+        return new FormDetailDto
+        {
+            FormId = form.FormId,
+            Title = form.Title,
+            Description = form.Description,
+            HeaderTitle = form.HeaderTitle,
+            HeaderDescription = form.HeaderDescription,
+            IsPublished = form.IsPublished,
+            CreatedBy = form.CreatedBy,
+            PublishedBy = form.PublishedBy,
+            Questions = form.Questions?.Select(q => new QuestionDetailDto
+            {
+                QuestionId = q.QuestionId,
+                Label = q.Label,
+                Description = q.Description,
+                Type = q.Type,
+                Required = q.Required,
+                Options = q.Options?.Select(o => new OptionDetailDto
+                {
+                    OptionId = o.OptionId,
+                    Label = o.Label
+                }).ToList(),
+                Order = q.Order
+            }).OrderBy(q => q.Order).ToList() ?? new List<QuestionDetailDto>(),
+            CreatedAt = form.CreatedAt,
+            UpdatedAt = form.UpdatedAt
+        };
+    }
+}
