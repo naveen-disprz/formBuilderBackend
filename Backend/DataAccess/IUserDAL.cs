@@ -19,9 +19,4 @@ public interface IUserDAL
     Task<User> UpdateUserAsync(User user);
     Task UpdateLastLoginAsync(Guid userId);
 
-    // Delete
-    Task<bool> DeleteUserAsync(Guid userId);
-
-    // Save changes
-    Task<bool> SaveChangesAsync();
 }

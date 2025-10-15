@@ -6,6 +6,8 @@ using Backend.Business;
 using Backend.DTOs.Response;
 using Backend.Enums;
 using Backend.Filters;
+using Backend.Exceptions;
+using FileNotFoundException = Backend.Exceptions.FileNotFoundException;
 
 namespace Backend.Controllers
 {
@@ -42,17 +44,35 @@ namespace Backend.Controllers
                 var result = await _responseBL.SubmitResponseAsync(formId, submitDto, CurrentUserId);
                 return Created($"/api/response/{result.ResponseId}", result);
             }
-            catch (KeyNotFoundException ex)
+            catch (FormNotFoundForResponseException ex)
             {
-                return NotFound(new { error = ex.Message });
+                _logger.LogWarning(ex, $"Form not found for response submission: {formId}");
+                return NotFound(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (InvalidOperationException ex)
+            catch (UnpublishedFormException ex)
             {
-                return Conflict(new { error = ex.Message });
+                _logger.LogWarning(ex, $"Attempted to submit response to unpublished form: {formId}");
+                return BadRequest(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (ArgumentException ex)
+            catch (DuplicateResponseException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                _logger.LogWarning(ex, $"Duplicate response attempt for form: {formId}");
+                return Conflict(new { error = ex.Message, code = ex.ErrorCode });
+            }
+            catch (RequiredQuestionException ex)
+            {
+                _logger.LogWarning(ex, $"Required question not answered for form: {formId}");
+                return BadRequest(new { error = ex.Message, code = ex.ErrorCode });
+            }
+            catch (ResponseValidationException ex)
+            {
+                _logger.LogWarning(ex, "Response validation failed");
+                return BadRequest(new { error = ex.Message, code = ex.ErrorCode });
+            }
+            catch (ResponseDataAccessException ex)
+            {
+                _logger.LogError(ex, $"Data access error submitting response for form: {formId}");
+                return StatusCode(500, new { error = ex.Message, code = ex.ErrorCode });
             }
             catch (Exception ex)
             {
@@ -70,13 +90,20 @@ namespace Backend.Controllers
                 var result = await _responseBL.GetFormResponsesAsync(formId, page, pageSize, CurrentUserId);
                 return Ok(result);
             }
-            catch (KeyNotFoundException ex)
+            catch (FormNotFoundForResponseException ex)
             {
-                return NotFound(new { error = ex.Message });
+                _logger.LogWarning(ex, $"Form not found: {formId}");
+                return NotFound(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (UnauthorizedAccessException ex)
+            catch (ResponseUnauthorizedException ex)
             {
+                _logger.LogWarning(ex, $"Unauthorized access to form responses: {formId}");
                 return Forbid(ex.Message);
+            }
+            catch (ResponseDataAccessException ex)
+            {
+                _logger.LogError(ex, $"Data access error getting responses for form: {formId}");
+                return StatusCode(500, new { error = ex.Message, code = ex.ErrorCode });
             }
             catch (Exception ex)
             {
@@ -93,13 +120,20 @@ namespace Backend.Controllers
                 var result = await _responseBL.GetResponseByIdAsync(responseId, CurrentUserId, CurrentUserRole);
                 return Ok(result);
             }
-            catch (KeyNotFoundException ex)
+            catch (ResponseNotFoundException ex)
             {
-                return NotFound(new { error = ex.Message });
+                _logger.LogWarning(ex, $"Response not found: {responseId}");
+                return NotFound(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (UnauthorizedAccessException ex)
+            catch (ResponseUnauthorizedException ex)
             {
+                _logger.LogWarning(ex, $"Unauthorized access to response: {responseId}");
                 return Forbid(ex.Message);
+            }
+            catch (ResponseDataAccessException ex)
+            {
+                _logger.LogError(ex, $"Data access error getting response: {responseId}");
+                return StatusCode(500, new { error = ex.Message, code = ex.ErrorCode });
             }
             catch (Exception ex)
             {
@@ -113,20 +147,30 @@ namespace Backend.Controllers
         {
             try
             {
-                var fileContent = await _responseBL.GetFileContentAsync(fileId, CurrentUserId, CurrentUserRole);
+                var file = await _responseBL.GetFileContentAsync(fileId, CurrentUserId, CurrentUserRole);
                 
-                // TODO: Get file metadata to set proper content type
-                var contentType = "application/octet-stream";
+                byte[] fileByte = Convert.FromBase64String(file.FileContent);
                 
                 if (download)
                 {
-                    return File(fileContent, contentType, $"file_{fileId}");
+                    return File(fileByte, file.MimeType, file.FileName);
                 }
-                return File(fileContent, contentType);
+                return File(fileByte, file.MimeType);
             }
-            catch (KeyNotFoundException ex)
+            catch (FileNotFoundException ex)
             {
-                return NotFound(new { error = ex.Message });
+                _logger.LogWarning(ex, $"File not found: {fileId}");
+                return NotFound(new { error = ex.Message, code = ex.ErrorCode });
+            }
+            catch (ResponseUnauthorizedException ex)
+            {
+                _logger.LogWarning(ex, $"Unauthorized access to file: {fileId}");
+                return Forbid(ex.Message);
+            }
+            catch (ResponseDataAccessException ex)
+            {
+                _logger.LogError(ex, $"Data access error getting file: {fileId}");
+                return StatusCode(500, new { error = ex.Message, code = ex.ErrorCode });
             }
             catch (Exception ex)
             {
