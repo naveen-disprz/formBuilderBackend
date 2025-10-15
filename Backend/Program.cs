@@ -9,6 +9,8 @@ using Backend.Models.Nosql;
 using System.Text;
 using Backend.Business;
 using Backend.DataAccess;
+using Backend.Enums;
+using Backend.Filters;
 using Backend.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -188,6 +190,8 @@ builder.Services.AddScoped<IResponseBL, ResponseBL>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenHelper, JwtTokenHelper>();
 
+builder.Services.AddScoped<UserContextActionFilter>();
+
 // Add logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -299,7 +303,7 @@ async Task SeedInitialData(
         Email = "admin@formbuilder.com",
         Username = "admin",
         PasswordHash = "admin_hash_here", // Use proper hashing in production
-        Role = "admin",
+        Role = UserRole.Admin,
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow
     };
@@ -318,9 +322,8 @@ async Task SeedInitialData(
         {
             new Question
             {
-                QuestionId = Guid.NewGuid().ToString(),
                 Label = "Your Name",
-                Type = "shortText",
+                Type = QuestionType.ShortText,
                 Required = true,
                 Order = 1
             }

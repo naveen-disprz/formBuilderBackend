@@ -6,6 +6,7 @@ using Backend.DataAccess;
 using Backend.DTOs.Form;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using Backend.Enums;
 
 namespace Backend.Business;
 
@@ -24,6 +25,7 @@ public class FormBL : IFormBL
 
     public async Task<FormDetailDto> CreateFormAsync(CreateFormDto createFormDto, Guid creatorId)
     {
+        Console.WriteLine(Enum.Parse<QuestionType>(createFormDto.Questions.First().Type));
         try
         {
             _logger.LogInformation($"Creating form: {createFormDto.Title}");
@@ -38,6 +40,7 @@ public class FormBL : IFormBL
             {
                 throw new ArgumentException("At least one question is required");
             }
+            
 
             // Validate options for select type questions
             foreach (var question in createFormDto.Questions)
@@ -59,16 +62,15 @@ public class FormBL : IFormBL
                 CreatedBy = creatorId,
                 Questions = createFormDto.Questions.Select((q, index) => new Question
                 {
-                    QuestionId = !string.IsNullOrEmpty(q.QuestionId) ? q.QuestionId : Guid.NewGuid().ToString(),
                     Label = q.Label,
                     Description = q.Description,
-                    Type = q.Type,
+                    Type = Enum.Parse<QuestionType>(q.Type),
                     Required = q.Required,
                     Options = q.Options?.Select(o => new Option
                     {
-                        OptionId = !string.IsNullOrEmpty(o.OptionId) ? o.OptionId : Guid.NewGuid().ToString(),
                         Label = o.Label
                     }).ToList(),
+                    DateFormat = q.DateFormat,
                     Order = q.Order > 0 ? q.Order : index + 1
                 }).ToList()
             };
@@ -96,7 +98,7 @@ public class FormBL : IFormBL
 
             var formItems = forms.Select(f => new FormItemDto
             {
-                FormId = f.FormId,
+                Id = f.Id,
                 Title = f.Title,
                 Description = f.Description,
                 QuestionCount = f.Questions?.Count ?? 0,
@@ -182,16 +184,15 @@ public class FormBL : IFormBL
             existingForm.HeaderDescription = updateFormDto.HeaderDescription;
             existingForm.Questions = updateFormDto.Questions.Select((q, index) => new Question
             {
-                QuestionId = !string.IsNullOrEmpty(q.QuestionId) ? q.QuestionId : Guid.NewGuid().ToString(),
                 Label = q.Label,
                 Description = q.Description,
-                Type = q.Type,
+                Type = Enum.Parse<QuestionType>(q.Type),
                 Required = q.Required,
                 Options = q.Options?.Select(o => new Option
                 {
-                    OptionId = !string.IsNullOrEmpty(o.OptionId) ? o.OptionId : Guid.NewGuid().ToString(),
                     Label = o.Label
                 }).ToList(),
+                DateFormat = q.DateFormat,
                 Order = q.Order > 0 ? q.Order : index + 1
             }).ToList();
 
@@ -288,7 +289,7 @@ public class FormBL : IFormBL
     {
         return new FormDetailDto
         {
-            FormId = form.FormId,
+            Id = form.Id,
             Title = form.Title,
             Description = form.Description,
             HeaderTitle = form.HeaderTitle,
@@ -298,14 +299,14 @@ public class FormBL : IFormBL
             PublishedBy = form.PublishedBy,
             Questions = form.Questions?.Select(q => new QuestionDetailDto
             {
-                QuestionId = q.QuestionId,
+                Id = q.Id.ToString(),
                 Label = q.Label,
                 Description = q.Description,
-                Type = q.Type,
+                Type = q.Type.ToString(),
                 Required = q.Required,
                 Options = q.Options?.Select(o => new OptionDetailDto
                 {
-                    OptionId = o.OptionId,
+                    Id = o.Id,
                     Label = o.Label
                 }).ToList(),
                 Order = q.Order

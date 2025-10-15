@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using Backend.Enums;
 
 namespace Backend.DTOs.Form;
 
 public class FormDetailDto
 {
-    public string FormId { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? HeaderTitle { get; set; }
@@ -20,10 +21,10 @@ public class FormDetailDto
 
 public class QuestionDetailDto
 {
-    public string QuestionId { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string Type { get; set; } = string.Empty;
+    public string Type { get; set; }
     public bool Required { get; set; }
     public List<OptionDetailDto>? Options { get; set; }
     public int Order { get; set; }
@@ -31,6 +32,6 @@ public class QuestionDetailDto
 
 public class OptionDetailDto
 {
-    public string OptionId { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Backend.Enums;
 
 namespace Backend.Models.Sql;
 
@@ -21,7 +22,7 @@ public class User
 
     [StringLength(200)] public string? Username { get; set; }
 
-    [Required] [StringLength(50)] public string Role { get; set; } // "admin" or "learner"
+    [Required] public UserRole Role { get; set; }
 
     [Required] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

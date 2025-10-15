@@ -26,7 +26,7 @@ public class CreateFormDto
 
 public class QuestionDto
 {
-    public string? QuestionId { get; set; }
+    public string? Id { get; set; }
 
     [Required] 
     [MaxLength(500)] 
@@ -41,13 +41,15 @@ public class QuestionDto
     public bool Required { get; set; }
 
     public List<OptionDto>? Options { get; set; } // CHANGED: Now list of OptionDto
+    
+    public string? DateFormat { get; set; } 
 
     public int Order { get; set; }
 }
 
 public class OptionDto
 {
-    public string? OptionId { get; set; } // Optional, will be generated if not provided
+    public string? Id { get; set; } // Optional, will be generated if not provided
     
     [Required]
     [MaxLength(200)]

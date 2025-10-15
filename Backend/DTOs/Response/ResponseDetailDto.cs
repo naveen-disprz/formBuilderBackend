@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Backend.Enums;
 
 namespace Backend.DTOs.Response;
     public class ResponseDetailDto
@@ -21,7 +22,7 @@ namespace Backend.DTOs.Response;
         public string QuestionId { get; set; } = string.Empty;
         public string QuestionLabel { get; set; } = string.Empty;
         public string QuestionType { get; set; } = string.Empty;
-        public string? Value { get; set; }
+        public object? Value { get; set; }
         public List<FileMetadataDto>? Files { get; set; }
     }
 

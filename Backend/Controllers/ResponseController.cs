@@ -4,12 +4,16 @@ using System;
 using System.Threading.Tasks;
 using Backend.Business;
 using Backend.DTOs.Response;
+using Backend.Enums;
+using Backend.Filters;
 
-namespace Backend.Controllers;
+namespace Backend.Controllers
+{
     [ApiController]
     [Route("api")]
     [Authorize]
-    public class ResponseController : ControllerBase
+    [ServiceFilter(typeof(UserContextActionFilter))]
+    public class ResponseController : BaseApiController
     {
         private readonly IResponseBL _responseBL;
         private readonly ILogger<ResponseController> _logger;
@@ -21,7 +25,7 @@ namespace Backend.Controllers;
         }
 
         [HttpPost("form/{formId}/response")]
-        [Authorize(Roles = "learner")]
+        [Authorize(Roles = nameof(UserRole.Learner))]
         public async Task<IActionResult> SubmitResponse(string formId, [FromBody] SubmitResponseDto submitDto)
         {
             try
@@ -30,14 +34,12 @@ namespace Backend.Controllers;
                 {
                     return BadRequest(ModelState);
                 }
-
-                var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
                 
                 // Add client info
                 submitDto.ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
                 submitDto.UserAgent = Request.Headers["User-Agent"].ToString();
 
-                var result = await _responseBL.SubmitResponseAsync(formId, submitDto, userId);
+                var result = await _responseBL.SubmitResponseAsync(formId, submitDto, CurrentUserId);
                 return Created($"/api/response/{result.ResponseId}", result);
             }
             catch (KeyNotFoundException ex)
@@ -60,13 +62,12 @@ namespace Backend.Controllers;
         }
 
         [HttpGet("form/{formId}/response")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
         public async Task<IActionResult> GetFormResponses(string formId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
-                var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-                var result = await _responseBL.GetFormResponsesAsync(formId, page, pageSize, userId);
+                var result = await _responseBL.GetFormResponsesAsync(formId, page, pageSize, CurrentUserId);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -89,10 +90,7 @@ namespace Backend.Controllers;
         {
             try
             {
-                var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-                var userRole = User.FindFirst("Role")?.Value ?? "learner";
-
-                var result = await _responseBL.GetResponseByIdAsync(responseId, userId, userRole);
+                var result = await _responseBL.GetResponseByIdAsync(responseId, CurrentUserId, CurrentUserRole);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -115,10 +113,7 @@ namespace Backend.Controllers;
         {
             try
             {
-                var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-                var userRole = User.FindFirst("Role")?.Value ?? "learner";
-
-                var fileContent = await _responseBL.GetFileContentAsync(fileId, userId, userRole);
+                var fileContent = await _responseBL.GetFileContentAsync(fileId, CurrentUserId, CurrentUserRole);
                 
                 // TODO: Get file metadata to set proper content type
                 var contentType = "application/octet-stream";
@@ -140,3 +135,4 @@ namespace Backend.Controllers;
             }
         }
     }
+}

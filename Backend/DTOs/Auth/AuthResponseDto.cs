@@ -1,4 +1,6 @@
-﻿namespace Backend.DTOs.Auth;
+﻿using Backend.Enums;
+
+namespace Backend.DTOs.Auth;
 
 public class AuthResponseDto
 {
@@ -7,7 +9,7 @@ public class AuthResponseDto
     public Guid UserId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
+    public UserRole Role { get; set; }
     public string Message { get; set; } = string.Empty;
     public DateTime? ExpiresAt { get; set; }
 }

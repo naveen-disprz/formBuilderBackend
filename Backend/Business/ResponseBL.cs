@@ -5,6 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Backend.DataAccess;
 using Backend.DTOs.Response;
+using Backend.Enums;
+using Backend.Models.Nosql;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Backend.Business;
 
@@ -57,8 +61,9 @@ public class ResponseBL : IResponseBL
             var requiredQuestions = form.Questions.Where(q => q.Required).ToList();
             foreach (var question in requiredQuestions)
             {
-                var answer = submitDto.Answers.FirstOrDefault(a => a.QuestionId == question.QuestionId);
-                if (answer == null || string.IsNullOrWhiteSpace(answer.Value?.ToString()))
+                var answer = submitDto.Answers.FirstOrDefault(a => a.QuestionId == question.Id);
+                if (question.Type != QuestionType.File &&
+                    (answer == null || string.IsNullOrWhiteSpace(answer.Value?.ToString())))
                 {
                     throw new ArgumentException($"Required question not answered: {question.Label}");
                 }
@@ -78,21 +83,36 @@ public class ResponseBL : IResponseBL
             // Create answers
             foreach (var answerDto in submitDto.Answers)
             {
-                var question = form.Questions.FirstOrDefault(q => q.QuestionId == answerDto.QuestionId);
+                var question = form.Questions.FirstOrDefault(q => q.Id == answerDto.QuestionId);
                 if (question == null) continue;
 
-                var answer = new Answer
+                Answer answer;
+
+                if (question.Type.ToString() == "MultiSelect" || question.Type.ToString() == "SingleSelect")
                 {
-                    ResponseId = createdResponse.ResponseId,
-                    QuestionId = answerDto.QuestionId,
-                    AnswerType = question.Type,
-                    AnswerValue = answerDto.Value?.ToString()
-                };
+                    answer = new Answer
+                    {
+                        ResponseId = createdResponse.ResponseId,
+                        QuestionId = answerDto.QuestionId,
+                        AnswerType = question.Type,
+                        AnswerValue = JsonSerializer.Serialize(answerDto.Value)
+                    };
+                }
+                else
+                {
+                    answer = new Answer
+                    {
+                        ResponseId = createdResponse.ResponseId,
+                        QuestionId = answerDto.QuestionId,
+                        AnswerType = question.Type,
+                        AnswerValue = answerDto.Value?.ToString()
+                    };
+                }
 
                 var createdAnswer = await _responseDAL.CreateAnswerAsync(answer);
 
-                // Handle file uploads
-                if (question.Type == "file" && answerDto.FileData != null)
+                // Check if file data exists before creating FileUpload
+                if (answerDto.FileData != null)
                 {
                     var fileUpload = new FileUpload
                     {
@@ -198,15 +218,20 @@ public class ResponseBL : IResponseBL
 
             var answerDetails = response.Answers.Select(a =>
             {
-                var question = form?.Questions.FirstOrDefault(q => q.QuestionId == a.QuestionId);
+                var question = form?.Questions.FirstOrDefault(q => q.Id == a.QuestionId);
 
                 return new AnswerDetailDto
                 {
                     AnswerId = a.AnswerId,
                     QuestionId = a.QuestionId,
                     QuestionLabel = question?.Label ?? "Unknown Question",
-                    QuestionType = a.AnswerType,
-                    Value = a.AnswerValue,
+                    QuestionType = a.AnswerType.ToString(),
+                    Value = a.AnswerType switch
+                    {
+                        QuestionType.MultiSelect or QuestionType.SingleSelect => JsonSerializer.Deserialize<List<object>>(a.AnswerValue!),
+                        QuestionType.Number => int.Parse(a.AnswerValue!),
+                        _ => a.AnswerValue
+                    },
                     Files = a.Files?.Select(f => new FileMetadataDto
                     {
                         FileId = f.FileId,

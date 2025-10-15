@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Backend.Business;
 using Backend.DataAccess;
 using Backend.DTOs.Auth;
+using Backend.Enums;
 using Backend.Utils;
 using Microsoft.AspNetCore.Identity;
 
@@ -66,7 +67,7 @@ public class AuthBL : IAuthBL
                 Email = registerDto.Email.ToLower(),
                 Username = registerDto.Username,
                 PasswordHash = _passwordHasher.HashPassword(registerDto.Password),
-                Role = "learner", // Default role
+                Role = UserRole.Learner,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

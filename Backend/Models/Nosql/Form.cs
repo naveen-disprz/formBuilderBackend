@@ -9,7 +9,8 @@ public class Form
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string FormId { get; set; }
+    [BsonElement("_id")]
+    public string Id { get; set; }
 
     [BsonElement("title")] [BsonRequired] public string Title { get; set; }
 

@@ -4,13 +4,16 @@ using System;
 using System.Threading.Tasks;
 using Backend.Business;
 using Backend.DTOs.Form;
+using Backend.Enums;
+using Backend.Filters;
 
 namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class FormController : ControllerBase
+[ServiceFilter(typeof(UserContextActionFilter))]
+public class FormController : BaseApiController
 {
     private readonly IFormBL _formBL;
     private readonly ILogger<FormController> _logger;
@@ -22,7 +25,7 @@ public class FormController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
     public async Task<IActionResult> CreateForm([FromBody] CreateFormDto createFormDto)
     {
         try
@@ -32,10 +35,9 @@ public class FormController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-            var result = await _formBL.CreateFormAsync(createFormDto, userId);
+            var result = await _formBL.CreateFormAsync(createFormDto, CurrentUserId);
 
-            return Created($"/api/forms/{result.FormId}", result);
+            return Created($"/api/forms/{result.Id}", result);
         }
         catch (ArgumentException ex)
         {
@@ -53,10 +55,7 @@ public class FormController : ControllerBase
     {
         try
         {
-            var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-            var userRole = User.FindFirst("Role")?.Value ?? "learner";
-
-            var result = await _formBL.GetFormsAsync(page, pageSize, userRole, userId);
+            var result = await _formBL.GetFormsAsync(page, pageSize, CurrentUserRole, CurrentUserId);
             return Ok(result);
         }
         catch (Exception ex)
@@ -86,7 +85,7 @@ public class FormController : ControllerBase
     }
 
     [HttpPut("{formId}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
     public async Task<IActionResult> UpdateForm(string formId, [FromBody] UpdateFormDto updateFormDto)
     {
         try
@@ -96,8 +95,7 @@ public class FormController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-            var result = await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
+            var result = await _formBL.UpdateFormAsync(formId, updateFormDto, CurrentUserId);
 
             return Ok(result);
         }
@@ -121,13 +119,12 @@ public class FormController : ControllerBase
     }
 
     [HttpDelete("{formId}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
     public async Task<IActionResult> DeleteForm(string formId)
     {
         try
         {
-            var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-            var result = await _formBL.DeleteFormAsync(formId, userId);
+            var result = await _formBL.DeleteFormAsync(formId, CurrentUserId);
 
             if (result)
             {
@@ -152,13 +149,12 @@ public class FormController : ControllerBase
     }
 
     [HttpPost("{formId}/publish")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
     public async Task<IActionResult> PublishForm(string formId)
     {
         try
         {
-            var userId = Guid.Parse(User.FindFirst("UserId")?.Value ?? "");
-            var result = await _formBL.PublishFormAsync(formId, userId);
+            var result = await _formBL.PublishFormAsync(formId, CurrentUserId);
 
             if (result)
             {

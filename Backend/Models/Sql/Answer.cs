@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Backend.Enums;
 
 namespace Backend.Models.Sql;
 
@@ -16,7 +17,7 @@ public class Answer
 
     [Required] [StringLength(100)] public string QuestionId { get; set; }
 
-    [Required] [StringLength(50)] public string AnswerType { get; set; } // shortText, longText, number, file, etc.
+    [Required] [StringLength(50)] public QuestionType AnswerType { get; set; } // shortText, longText, number, file, etc.
 
     [Column(TypeName = "nvarchar(max)")] public string? AnswerValue { get; set; }
 

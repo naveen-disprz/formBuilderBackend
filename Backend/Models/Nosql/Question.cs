@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Backend.Enums;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -7,9 +8,10 @@ namespace Backend.Models.Nosql;
 
 public class Question
 {
-    [BsonElement("questionId")]
-    [BsonRequired]
-    public string QuestionId { get; set; } = Guid.NewGuid().ToString();
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonElement("_id")]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("label")] 
     [BsonRequired] 
@@ -20,10 +22,16 @@ public class Question
 
     [BsonElement("type")]
     [BsonRequired]
-    public string Type { get; set; } // shortText, longText, number, date, singleSelect, multiSelect, file
-
+    [BsonRepresentation(BsonType.String)]
+    public QuestionType Type { get; set; } 
+    
+    
     [BsonElement("required")] 
     public bool Required { get; set; } = false;
+    
+    [BsonElement("dateFormat")] 
+    [BsonIgnoreIfNull]
+    public string DateFormat { get; set; } = string.Empty;
 
     [BsonElement("options")]
     [BsonIgnoreIfNull]
@@ -35,8 +43,10 @@ public class Question
 
 public class Option
 {
-    [BsonElement("optionId")]
-    public string OptionId { get; set; } = Guid.NewGuid().ToString();
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonElement("_id")]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("label")]
     [BsonRequired]

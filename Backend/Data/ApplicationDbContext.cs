@@ -56,6 +56,10 @@ public class ApplicationDbContext : DbContext
                 .WithMany(r => r.Answers)
                 .HasForeignKey(e => e.ResponseId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.Property(e => e.AnswerType)
+                .HasConversion<string>()
+                .HasMaxLength(50);
         });
 
         // FileUpload configuration

@@ -24,14 +24,14 @@ public class FormDAL : IFormDAL
     {
         try
         {
-            form.FormId = ObjectId.GenerateNewId().ToString();
+            form.Id = ObjectId.GenerateNewId().ToString();
             form.CreatedAt = DateTime.UtcNow;
             form.UpdatedAt = DateTime.UtcNow;
             form.IsPublished = false;
             form.IsDeleted = false;
 
             await _forms.InsertOneAsync(form);
-            _logger.LogInformation($"Form created successfully: {form.FormId}");
+            _logger.LogInformation($"Form created successfully: {form.Id}");
 
             return form;
         }
@@ -47,7 +47,7 @@ public class FormDAL : IFormDAL
         try
         {
             var filter = Builders<Form>.Filter.And(
-                Builders<Form>.Filter.Eq(f => f.FormId, formId),
+                Builders<Form>.Filter.Eq(f => f.Id, formId),
                 Builders<Form>.Filter.Eq(f => f.IsDeleted, false)
             );
 
@@ -135,7 +135,7 @@ public class FormDAL : IFormDAL
         try
         {
             var filter = Builders<Form>.Filter.And(
-                Builders<Form>.Filter.Eq(f => f.FormId, formId),
+                Builders<Form>.Filter.Eq(f => f.Id, formId),
                 Builders<Form>.Filter.Eq(f => f.IsDeleted, false)
             );
 
@@ -156,7 +156,7 @@ public class FormDAL : IFormDAL
             updatedForm.UpdatedAt = DateTime.UtcNow;
 
             var filter = Builders<Form>.Filter.And(
-                Builders<Form>.Filter.Eq(f => f.FormId, formId),
+                Builders<Form>.Filter.Eq(f => f.Id, formId),
                 Builders<Form>.Filter.Eq(f => f.IsDeleted, false)
             );
 
@@ -178,7 +178,7 @@ public class FormDAL : IFormDAL
     {
         try
         {
-            var filter = Builders<Form>.Filter.Eq(f => f.FormId, formId);
+            var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
             var update = Builders<Form>.Update
                 .Set(f => f.IsPublished, true)
                 .Set(f => f.PublishedBy, publishedBy)
@@ -198,7 +198,7 @@ public class FormDAL : IFormDAL
     {
         try
         {
-            var filter = Builders<Form>.Filter.Eq(f => f.FormId, formId);
+            var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
             var update = Builders<Form>.Update
                 .Set(f => f.IsPublished, false)
                 .Set(f => f.UpdatedAt, DateTime.UtcNow);
@@ -217,7 +217,7 @@ public class FormDAL : IFormDAL
     {
         try
         {
-            var filter = Builders<Form>.Filter.Eq(f => f.FormId, formId);
+            var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
             var update = Builders<Form>.Update
                 .Set(f => f.IsDeleted, true)
                 .Set(f => f.UpdatedAt, DateTime.UtcNow);
@@ -236,7 +236,7 @@ public class FormDAL : IFormDAL
     {
         try
         {
-            var filter = Builders<Form>.Filter.Eq(f => f.FormId, formId);
+            var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
             var result = await _forms.DeleteOneAsync(filter);
             return result.DeletedCount > 0;
         }
