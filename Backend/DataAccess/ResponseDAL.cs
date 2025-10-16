@@ -196,39 +196,6 @@ namespace Backend.DataAccess
                     ex);
             }
         }
-
-        public async Task<Response> UpdateResponseAsync(Response response)
-        {
-            try
-            {
-                _context.Responses.Update(response);
-                await _context.SaveChangesAsync();
-                return response;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error updating response: {response.ResponseId}");
-                throw new ResponseDataAccessException($"Database error while updating response: {response.ResponseId}",
-                    ex);
-            }
-        }
-
-        public async Task<bool> DeleteResponseAsync(Guid responseId)
-        {
-            try
-            {
-                var response = await GetResponseByIdAsync(responseId);
-                if (response == null) return false;
-
-                _context.Responses.Remove(response);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error deleting response: {responseId}");
-                throw new ResponseDataAccessException($"Database error while deleting response: {responseId}", ex);
-            }
-        }
+        
     }
 }

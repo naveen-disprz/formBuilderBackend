@@ -24,7 +24,7 @@ public class MongoDbContext
     }
 
     // Collection accessors
-    public IMongoCollection<Form> Forms =>
+    public virtual IMongoCollection<Form> Forms =>
         _database.GetCollection<Form>("forms");
 
     // Add more collections as needed

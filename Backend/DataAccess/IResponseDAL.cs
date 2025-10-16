@@ -20,10 +20,4 @@ public interface IResponseDAL
     Task<FileUpload?> GetFileByIdAsync(Guid fileId);
     Task<long> GetResponseCountByFormIdAsync(string formId);
     Task<bool> UserHasRespondedToFormAsync(Guid userId, string formId);
-
-    // Update
-    Task<Response> UpdateResponseAsync(Response response);
-
-    // Delete
-    Task<bool> DeleteResponseAsync(Guid responseId);
 }

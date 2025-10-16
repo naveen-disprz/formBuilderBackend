@@ -1,0 +1,620 @@
+﻿using Xunit;
+using FluentAssertions;
+using Moq;
+using Microsoft.Extensions.Logging;
+using Backend.Business;
+using Backend.DataAccess;
+using Backend.DTOs.Form;
+using Backend.Models.Nosql;
+using Backend.Enums;
+using Backend.Exceptions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
+using MongoDB.Bson;
+
+namespace Backend.Tests.UnitTests.Business
+{
+    public class FormBLTests
+    {
+        private readonly Mock<IFormDAL> _formDALMock;
+        private readonly Mock<IResponseDAL> _responseDALMock;
+        private readonly Mock<ILogger<FormBL>> _loggerMock;
+        private readonly FormBL _formBL;
+
+        public FormBLTests()
+        {
+            _formDALMock = new Mock<IFormDAL>();
+            _responseDALMock = new Mock<IResponseDAL>();
+            _loggerMock = new Mock<ILogger<FormBL>>();
+
+            _formBL = new FormBL(
+                _formDALMock.Object,
+                _responseDALMock.Object,
+                _loggerMock.Object
+            );
+        }
+
+        #region CreateFormAsync Tests
+
+        [Fact]
+        public async Task CreateFormAsync_WithValidData_ReturnsFormDetailDto()
+        {
+            // Arrange
+            var creatorId = Guid.NewGuid();
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Description = "Test Description",
+                HeaderTitle = "Header Title",
+                HeaderDescription = "Header Description",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Description = "Q1 Description",
+                        Type = "ShortText",
+                        Required = true,
+                        Order = 1
+                    },
+                    new QuestionDto
+                    {
+                        Label = "Question 2",
+                        Type = "SingleSelect",
+                        Required = false,
+                        Options = new List<OptionDto>
+                        {
+                            new OptionDto { Label = "Option 1" },
+                            new OptionDto { Label = "Option 2" }
+                        },
+                        Order = 2
+                    }
+                }
+            };
+
+            var createdForm = new Form
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                Title = createFormDto.Title,
+                Description = createFormDto.Description,
+                HeaderTitle = createFormDto.HeaderTitle,
+                HeaderDescription = createFormDto.HeaderDescription,
+                CreatedBy = creatorId,
+                IsPublished = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        Id = ObjectId.GenerateNewId().ToString(),
+                        Label = "Question 1",
+                        Description = "Q1 Description",
+                        Type = QuestionType.ShortText,
+                        Required = true,
+                        Order = 1
+                    },
+                    new Question
+                    {
+                        Id = ObjectId.GenerateNewId().ToString(),
+                        Label = "Question 2",
+                        Type = QuestionType.SingleSelect,
+                        Required = false,
+                        Options = new List<Option>
+                        {
+                            new Option { Id = ObjectId.GenerateNewId().ToString(), Label = "Option 1" },
+                            new Option { Id = ObjectId.GenerateNewId().ToString(), Label = "Option 2" }
+                        },
+                        Order = 2
+                    }
+                }
+            };
+
+            _formDALMock.Setup(x => x.CreateFormAsync(It.IsAny<Form>()))
+                .ReturnsAsync(createdForm);
+
+            // Act
+            var result = await _formBL.CreateFormAsync(createFormDto, creatorId);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Title.Should().Be(createFormDto.Title);
+            result.Description.Should().Be(createFormDto.Description);
+            result.Questions.Should().HaveCount(2);
+            result.Questions[0].Label.Should().Be("Question 1");
+            result.Questions[1].Options.Should().HaveCount(2);
+        }
+
+        [Fact]
+        public async Task CreateFormAsync_WithEmptyTitle_ThrowsFormValidationException()
+        {
+            // Arrange
+            var createFormDto = new CreateFormDto
+            {
+                Title = "",
+                Questions = new List<QuestionDto>()
+            };
+
+            // Act
+            var act = async () => await _formBL.CreateFormAsync(createFormDto, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<FormValidationException>()
+                .WithMessage("Form title is required");
+        }
+
+        [Fact]
+        public async Task CreateFormAsync_WithNoQuestions_ThrowsFormValidationException()
+        {
+            // Arrange
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Questions = new List<QuestionDto>()
+            };
+
+            // Act
+            var act = async () => await _formBL.CreateFormAsync(createFormDto, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<FormValidationException>()
+                .WithMessage("At least one question is required");
+        }
+
+        [Fact]
+        public async Task CreateFormAsync_WithSelectQuestionWithoutOptions_ThrowsQuestionValidationException()
+        {
+            // Arrange
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Select Question",
+                        Type = "singleSelect",
+                        Options = null
+                    }
+                }
+            };
+
+            // Act
+            var act = async () => await _formBL.CreateFormAsync(createFormDto, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<QuestionValidationException>()
+                .WithMessage("Options are required for singleSelect questions");
+        }
+
+        #endregion
+
+        #region GetFormsAsync Tests
+
+        [Fact]
+        public async Task GetFormsAsync_ForLearner_ReturnsOnlyPublishedForms()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var forms = new List<Form>
+            {
+                new Form
+                {
+                    Id = ObjectId.GenerateNewId().ToString(),
+                    Title = "Published Form",
+                    IsPublished = true,
+                    CreatedBy = userId,
+                    Questions = new List<Question> { new Question() }
+                }
+            };
+
+            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, true))
+                .ReturnsAsync(forms);
+            _formDALMock.Setup(x => x.GetFormCountAsync(true))
+                .ReturnsAsync(1);
+
+            // Act
+            var result = await _formBL.GetFormsAsync(1, 10, "learner", userId);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Forms.Should().HaveCount(1);
+            result.TotalCount.Should().Be(1);
+            result.CurrentPage.Should().Be(1);
+            result.PageSize.Should().Be(10);
+            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, true), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetFormsAsync_ForAdmin_ReturnsAllForms()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var forms = new List<Form>
+            {
+                new Form { Id = "1", Title = "Form 1", IsPublished = true, CreatedBy = userId },
+                new Form { Id = "2", Title = "Form 2", IsPublished = false, CreatedBy = userId }
+            };
+
+            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, null))
+                .ReturnsAsync(forms);
+            _formDALMock.Setup(x => x.GetFormCountAsync(null))
+                .ReturnsAsync(2);
+
+            // Act
+            var result = await _formBL.GetFormsAsync(1, 10, "admin", userId);
+
+            // Assert
+            result.Forms.Should().HaveCount(2);
+            result.TotalCount.Should().Be(2);
+            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, null), Times.Once);
+        }
+
+        #endregion
+
+        #region GetFormByIdAsync Tests
+
+        [Fact]
+        public async Task GetFormByIdAsync_WithExistingForm_ReturnsFormDetailDto()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var form = new Form
+            {
+                Id = formId,
+                Title = "Test Form",
+                Description = "Description",
+                CreatedBy = Guid.NewGuid(),
+                IsPublished = true,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        Id = ObjectId.GenerateNewId().ToString(),
+                        Label = "Question 1",
+                        Type = QuestionType.ShortText,
+                        Order = 1
+                    }
+                }
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+
+            // Act
+            var result = await _formBL.GetFormByIdAsync(formId);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Id.Should().Be(formId);
+            result.Title.Should().Be("Test Form");
+            result.Questions.Should().HaveCount(1);
+        }
+
+        [Fact]
+        public async Task GetFormByIdAsync_WithNonExistentForm_ThrowsFormNotFoundException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync((Form)null);
+
+            // Act
+            var act = async () => await _formBL.GetFormByIdAsync(formId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormNotFoundException>()
+                .WithMessage($"Form not found: {formId}");
+        }
+
+        #endregion
+
+        #region UpdateFormAsync Tests
+
+        [Fact]
+        public async Task UpdateFormAsync_WithValidData_ReturnsUpdatedFormDetailDto()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Description = "Updated Description",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Updated Question",
+                        Type = "LongText",
+                        Required = true,
+                        Order = 1
+                    }
+                }
+            };
+
+            var existingForm = new Form
+            {
+                Id = formId,
+                Title = "Original Form",
+                CreatedBy = userId,
+                IsPublished = false
+            };
+
+            var updatedForm = new Form
+            {
+                Id = formId,
+                Title = updateFormDto.Title,
+                Description = updateFormDto.Description,
+                CreatedBy = userId,
+                UpdatedAt = DateTime.UtcNow,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        Label = "Updated Question",
+                        Type = QuestionType.LongText,
+                        Required = true,
+                        Order = 1
+                    }
+                }
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(existingForm);
+            _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
+                .ReturnsAsync(0);
+            _formDALMock.Setup(x => x.UpdateFormAsync(formId, It.IsAny<Form>()))
+                .ReturnsAsync(updatedForm);
+
+            // Act
+            var result = await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Title.Should().Be("Updated Form");
+            result.Description.Should().Be("Updated Description");
+        }
+
+        [Fact]
+        public async Task UpdateFormAsync_WithNonExistentForm_ThrowsFormNotFoundException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updateFormDto = new UpdateFormDto { Title = "Test" };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync((Form)null);
+
+            // Act
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<FormNotFoundException>();
+        }
+
+        [Fact]
+        public async Task UpdateFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var creatorId = Guid.NewGuid();
+            var differentUserId = Guid.NewGuid();
+            var updateFormDto = new UpdateFormDto { Title = "Test" };
+
+            var existingForm = new Form
+            {
+                Id = formId,
+                CreatedBy = creatorId
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(existingForm);
+
+            // Act
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, differentUserId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormUnauthorizedException>()
+                .WithMessage("Only the form creator can update it");
+        }
+
+        [Fact]
+        public async Task UpdateFormAsync_WithPublishedFormHavingResponses_ThrowsFormLockedException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var updateFormDto = new UpdateFormDto { Title = "Test" };
+
+            var existingForm = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = true
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(existingForm);
+            _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
+                .ReturnsAsync(5);
+
+            // Act
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormLockedException>()
+                .WithMessage("Cannot update published form with responses");
+        }
+
+        #endregion
+
+        #region DeleteFormAsync Tests
+
+        [Fact]
+        public async Task DeleteFormAsync_WithValidData_ReturnsTrue()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = userId
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+            _formDALMock.Setup(x => x.SoftDeleteFormAsync(formId))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _formBL.DeleteFormAsync(formId, userId);
+
+            // Assert
+            result.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task DeleteFormAsync_WithNonExistentForm_ThrowsFormNotFoundException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync((Form)null);
+
+            // Act
+            var act = async () => await _formBL.DeleteFormAsync(formId, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<FormNotFoundException>();
+        }
+
+        [Fact]
+        public async Task DeleteFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var creatorId = Guid.NewGuid();
+            var differentUserId = Guid.NewGuid();
+
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = creatorId
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+
+            // Act
+            var act = async () => await _formBL.DeleteFormAsync(formId, differentUserId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormUnauthorizedException>()
+                .WithMessage("Only the form creator can delete it");
+        }
+
+        #endregion
+
+        #region PublishFormAsync Tests
+
+        [Fact]
+        public async Task PublishFormAsync_WithValidData_ReturnsTrue()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = false
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+            _formDALMock.Setup(x => x.PublishFormAsync(formId, userId))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _formBL.PublishFormAsync(formId, userId);
+
+            // Assert
+            result.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task PublishFormAsync_WithNonExistentForm_ThrowsFormNotFoundException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync((Form)null);
+
+            // Act
+            var act = async () => await _formBL.PublishFormAsync(formId, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<FormNotFoundException>();
+        }
+
+        [Fact]
+        public async Task PublishFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var creatorId = Guid.NewGuid();
+            var differentUserId = Guid.NewGuid();
+
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = creatorId
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+
+            // Act
+            var act = async () => await _formBL.PublishFormAsync(formId, differentUserId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormUnauthorizedException>()
+                .WithMessage("Only the form creator can publish it");
+        }
+
+        #endregion
+
+        #region UnpublishFormAsync Tests
+
+        [Fact]
+        public async Task UnpublishFormAsync_WithValidData_ReturnsTrue()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = true
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+            _formDALMock.Setup(x => x.UnpublishFormAsync(formId))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _formBL.UnpublishFormAsync(formId, userId);
+
+            // Assert
+            result.Should().BeTrue();
+        }
+
+        #endregion
+    }
+}

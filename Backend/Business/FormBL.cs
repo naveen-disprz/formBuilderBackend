@@ -26,7 +26,6 @@ namespace Backend.Business
 
         public async Task<FormDetailDto> CreateFormAsync(CreateFormDto createFormDto, Guid creatorId)
         {
-            Console.WriteLine(Enum.Parse<QuestionType>(createFormDto.Questions.First().Type));
             try
             {
                 _logger.LogInformation($"Creating form: {createFormDto.Title}");
