@@ -229,12 +229,6 @@ namespace Backend.Business
                     throw new FormNotFoundException(formId);
                 }
 
-                // Check if user is the creator
-                if (form.CreatedBy != userId)
-                {
-                    throw new FormUnauthorizedException("Only the form creator can delete it");
-                }
-
                 return await _formDAL.SoftDeleteFormAsync(formId);
             }
             catch (FormException)
@@ -278,36 +272,6 @@ namespace Backend.Business
             }
         }
 
-        public async Task<bool> UnpublishFormAsync(string formId, Guid userId)
-        {
-            try
-            {
-                var form = await _formDAL.GetFormByIdAsync(formId);
-
-                if (form == null)
-                {
-                    throw new FormNotFoundException(formId);
-                }
-
-                // Check if user is the creator
-                if (form.CreatedBy != userId)
-                {
-                    throw new FormUnauthorizedException("Only the form creator can unpublish it");
-                }
-
-                return await _formDAL.UnpublishFormAsync(formId);
-            }
-            catch (FormException)
-            {
-                throw; // Re-throw our custom exceptions
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error unpublishing form: {formId}");
-                throw new FormDataAccessException($"Failed to unpublish form: {formId}", ex);
-            }
-        }
-
         private FormDetailDto MapToFormDetailDto(Form form)
         {
             return new FormDetailDto
@@ -325,6 +289,7 @@ namespace Backend.Business
                     Id = q.Id.ToString(),
                     Label = q.Label,
                     Description = q.Description,
+                    DateFormat = q.Type == QuestionType.Date ? q.DateFormat : null,
                     Type = q.Type.ToString(),
                     Required = q.Required,
                     Options = q.Options?.Select(o => new OptionDetailDto

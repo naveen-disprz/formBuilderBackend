@@ -157,6 +157,26 @@ namespace Backend.Tests.UnitTests.Controllers
             var badRequestResult = result as BadRequestObjectResult;
             badRequestResult.Value.Should().BeEquivalentTo(new { error = "Password too weak", code = "PASSWORD_POLICY" });
         }
+        
+        [Fact]
+        public async Task Login_WithUnregisteredUser_ReturnsUnauthorized()
+        {
+            // Arrange
+            var loginDto = new LoginDto
+            {
+                EmailOrUsername = "test@example.com",
+                Password = "weak",
+            };
+
+            _authBLMock.Setup(x => x.LoginAsync(It.IsAny<LoginDto>()))
+                .ThrowsAsync(new UserNotFoundException());
+
+            // Act
+            var result = await _authController.Login(loginDto);
+
+            // Assert
+            result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
 
         [Fact]
         public async Task Register_WithUnexpectedException_ReturnsInternalServerError()

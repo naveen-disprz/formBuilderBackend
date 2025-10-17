@@ -302,6 +302,228 @@ namespace Backend.Tests.UnitTests.DataAccess
             // Assert
             await act.Should().NotThrowAsync();
         }
+        
+        [Fact]
+        public async Task AuthDataAccessException_VerifyExceptionProperties()
+        {
+            // Arrange
+            var innerException = new Exception("Inner exception message");
+            var authException = new AuthDataAccessException("Test error message", innerException);
+
+            // Assert
+            authException.Message.Should().Be("Test error message");
+            authException.ErrorCode.Should().Be("AUTH_DATA_ACCESS_ERROR");
+            authException.InnerException.Should().BeSameAs(innerException);
+            authException.Should().BeAssignableTo<AuthException>();
+        }
+        
+        [Fact]
+        public async Task CreateUserAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var user = new User
+            {
+                UserId = Guid.NewGuid(),
+                Email = "test@example.com",
+                Username = "testuser",
+                PasswordHash = "hashedpassword",
+                Role = UserRole.Learner
+            };
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.CreateUserAsync(user));
+
+            exception.Message.Should().Be("Error creating user");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetUserByIdAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var userId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.GetUserByIdAsync(userId));
+
+            exception.Message.Should().Be($"Error getting user by ID: {userId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetUserByEmailAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var email = "test@example.com";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.GetUserByEmailAsync(email));
+
+            exception.Message.Should().Be($"Error getting user by email: {email}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetUserByUsernameAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var username = "testuser";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.GetUserByUsernameAsync(username));
+
+            exception.Message.Should().Be($"Error getting user by username: {username}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UserExistsByEmailAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var email = "test@example.com";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.UserExistsByEmailAsync(email));
+
+            exception.Message.Should().Be($"Error checking if user exists by email: {email}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UserExistsByUsernameAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var username = "testuser";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.UserExistsByUsernameAsync(username));
+
+            exception.Message.Should().Be($"Error checking if user exists by username: {username}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UpdateUserAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var user = new User
+            {
+                UserId = Guid.NewGuid(),
+                Email = "test@example.com",
+                Username = "testuser",
+                PasswordHash = "hashedpassword",
+                Role = UserRole.Learner,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.UpdateUserAsync(user));
+
+            exception.Message.Should().Be($"Error updating user: {user.UserId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UpdateLastLoginAsync_WhenDatabaseError_ThrowsAuthDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var userDAL = new UserDAL(context, _loggerMock.Object);
+
+            var userId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<AuthDataAccessException>(
+                () => userDAL.UpdateLastLoginAsync(userId));
+
+            exception.Message.Should().Be($"Error updating last login for user: {userId}");
+            exception.InnerException.Should().NotBeNull();
+        }
 
         public void Dispose()
         {

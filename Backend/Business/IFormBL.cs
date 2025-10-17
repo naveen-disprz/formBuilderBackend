@@ -13,5 +13,4 @@ public interface IFormBL
     Task<FormDetailDto> UpdateFormAsync(string formId, UpdateFormDto updateFormDto, Guid userId);
     Task<bool> DeleteFormAsync(string formId, Guid userId);
     Task<bool> PublishFormAsync(string formId, Guid userId);
-    Task<bool> UnpublishFormAsync(string formId, Guid userId);
 }

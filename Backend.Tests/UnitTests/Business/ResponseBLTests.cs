@@ -46,7 +46,7 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var formId = "507f1f77bcf86cd799439011";
             var userId = Guid.NewGuid();
-            
+
             var form = new Form
             {
                 Id = formId,
@@ -100,13 +100,13 @@ namespace Backend.Tests.UnitTests.Business
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
-            
+
             _responseDALMock.Setup(x => x.UserHasRespondedToFormAsync(userId, formId))
                 .ReturnsAsync(false);
-            
+
             _responseDALMock.Setup(x => x.CreateResponseAsync(It.IsAny<Response>()))
                 .ReturnsAsync(createdResponse);
-            
+
             _responseDALMock.Setup(x => x.CreateAnswerAsync(It.IsAny<Answer>()))
                 .ReturnsAsync((Answer a) => a);
 
@@ -118,7 +118,7 @@ namespace Backend.Tests.UnitTests.Business
             result.Success.Should().BeTrue();
             result.ResponseId.Should().Be(createdResponse.ResponseId);
             result.Message.Should().Be("Response submitted successfully");
-            
+
             _responseDALMock.Verify(x => x.CreateResponseAsync(It.IsAny<Response>()), Times.Once);
             _responseDALMock.Verify(x => x.CreateAnswerAsync(It.IsAny<Answer>()), Times.Exactly(2));
         }
@@ -183,7 +183,7 @@ namespace Backend.Tests.UnitTests.Business
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
-            
+
             _responseDALMock.Setup(x => x.UserHasRespondedToFormAsync(userId, formId))
                 .ReturnsAsync(true);
 
@@ -201,7 +201,7 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var formId = "507f1f77bcf86cd799439011";
             var userId = Guid.NewGuid();
-            
+
             var form = new Form
             {
                 Id = formId,
@@ -225,7 +225,7 @@ namespace Backend.Tests.UnitTests.Business
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
-            
+
             _responseDALMock.Setup(x => x.UserHasRespondedToFormAsync(userId, formId))
                 .ReturnsAsync(false);
 
@@ -243,7 +243,7 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var formId = "507f1f77bcf86cd799439011";
             var userId = Guid.NewGuid();
-            
+
             var form = new Form
             {
                 Id = formId,
@@ -295,16 +295,16 @@ namespace Backend.Tests.UnitTests.Business
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
-            
+
             _responseDALMock.Setup(x => x.UserHasRespondedToFormAsync(userId, formId))
                 .ReturnsAsync(false);
-            
+
             _responseDALMock.Setup(x => x.CreateResponseAsync(It.IsAny<Response>()))
                 .ReturnsAsync(createdResponse);
-            
+
             _responseDALMock.Setup(x => x.CreateAnswerAsync(It.IsAny<Answer>()))
                 .ReturnsAsync(createdAnswer);
-            
+
             _responseDALMock.Setup(x => x.CreateFileUploadAsync(It.IsAny<FileUpload>()))
                 .ReturnsAsync((FileUpload f) => f);
 
@@ -314,10 +314,10 @@ namespace Backend.Tests.UnitTests.Business
             // Assert
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
-            
+
             _responseDALMock.Verify(x => x.CreateFileUploadAsync(
-                It.Is<FileUpload>(f => 
-                    f.FileName == "document.pdf" && 
+                It.Is<FileUpload>(f =>
+                    f.FileName == "document.pdf" &&
                     f.MimeType == "application/pdf" &&
                     f.FileSizeBytes == 2048 &&
                     f.FileContent == "base64encodedcontent"
@@ -330,7 +330,7 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var formId = "507f1f77bcf86cd799439011";
             var userId = Guid.NewGuid();
-            
+
             var form = new Form
             {
                 Id = formId,
@@ -362,10 +362,10 @@ namespace Backend.Tests.UnitTests.Business
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
-            
+
             _responseDALMock.Setup(x => x.GetResponsesByFormIdAsync(formId, 1, 10))
                 .ReturnsAsync(responses);
-            
+
             _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
                 .ReturnsAsync(2);
 
@@ -379,7 +379,7 @@ namespace Backend.Tests.UnitTests.Business
             result.PageSize.Should().Be(10);
             result.TotalCount.Should().Be(2);
             result.TotalPages.Should().Be(1);
-            
+
             result.Responses[0].SubmitterUsername.Should().Be("user1");
             result.Responses[0].AnswerCount.Should().Be(2);
             result.Responses[1].SubmitterUsername.Should().Be("user2");
@@ -411,7 +411,7 @@ namespace Backend.Tests.UnitTests.Business
             var formId = "507f1f77bcf86cd799439011";
             var userId = Guid.NewGuid();
             var otherUserId = Guid.NewGuid();
-            
+
             var form = new Form
             {
                 Id = formId,
@@ -437,7 +437,7 @@ namespace Backend.Tests.UnitTests.Business
             var responseId = Guid.NewGuid();
             var userId = Guid.NewGuid();
             var formId = "507f1f77bcf86cd799439011";
-            
+
             var response = new Response
             {
                 ResponseId = responseId,
@@ -464,6 +464,25 @@ namespace Backend.Tests.UnitTests.Business
                         AnswerType = QuestionType.Number,
                         AnswerValue = "42",
                         Files = new List<FileUpload>()
+                    },
+                    new Answer
+                    {
+                        AnswerId = Guid.NewGuid(),
+                        QuestionId = "q3",
+                        AnswerType = QuestionType.File,
+                        AnswerValue = null,
+                        Files = new List<FileUpload>()
+                        {
+                            new FileUpload
+                            {
+                                FileId = Guid.NewGuid(),
+                                FileName = "test.txt",
+                                AnswerId = Guid.NewGuid(),
+                                FileContent = "iknonsfdvsv",
+                                FileSizeBytes = 63842,
+                                MimeType = "text/plain",
+                            }
+                        }
                     }
                 }
             };
@@ -481,7 +500,7 @@ namespace Backend.Tests.UnitTests.Business
 
             _responseDALMock.Setup(x => x.GetResponseByIdAsync(responseId))
                 .ReturnsAsync(response);
-            
+
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
 
@@ -496,12 +515,12 @@ namespace Backend.Tests.UnitTests.Business
             result.SubmitterUsername.Should().Be("testuser");
             result.ClientIp.Should().Be("192.168.1.1");
             result.UserAgent.Should().Be("Mozilla/5.0");
-            result.Answers.Should().HaveCount(2);
-            
+            result.Answers.Should().HaveCount(3);
+
             result.Answers[0].QuestionLabel.Should().Be("Question 1");
             result.Answers[0].QuestionType.Should().Be("ShortText");
             result.Answers[0].Value.Should().Be("Answer text");
-            
+
             result.Answers[1].QuestionLabel.Should().Be("Question 2");
             result.Answers[1].QuestionType.Should().Be("Number");
             result.Answers[1].Value.Should().Be(42);
@@ -533,7 +552,7 @@ namespace Backend.Tests.UnitTests.Business
             var adminUserId = Guid.NewGuid();
             var responseOwnerUserId = Guid.NewGuid();
             var formId = "507f1f77bcf86cd799439011";
-            
+
             var response = new Response
             {
                 ResponseId = responseId,
@@ -553,7 +572,7 @@ namespace Backend.Tests.UnitTests.Business
 
             _responseDALMock.Setup(x => x.GetResponseByIdAsync(responseId))
                 .ReturnsAsync(response);
-            
+
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
 
@@ -575,7 +594,7 @@ namespace Backend.Tests.UnitTests.Business
             var responseOwnerUserId = Guid.NewGuid();
             var formOwnerUserId = Guid.NewGuid();
             var formId = "507f1f77bcf86cd799439011";
-            
+
             var response = new Response
             {
                 ResponseId = responseId,
@@ -595,7 +614,7 @@ namespace Backend.Tests.UnitTests.Business
 
             _responseDALMock.Setup(x => x.GetResponseByIdAsync(responseId))
                 .ReturnsAsync(response);
-            
+
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
                 .ReturnsAsync(form);
 
@@ -613,7 +632,7 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var fileId = Guid.NewGuid();
             var userId = Guid.NewGuid();
-            
+
             var file = new FileUpload
             {
                 FileId = fileId,

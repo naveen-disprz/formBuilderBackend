@@ -50,11 +50,6 @@ namespace Backend.Controllers
                 _logger.LogWarning(ex, "Question validation failed");
                 return BadRequest(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (FormException ex)
-            {
-                _logger.LogError(ex, "Form error during creation");
-                return BadRequest(new { error = ex.Message, code = ex.ErrorCode });
-            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating form");
@@ -174,11 +169,6 @@ namespace Backend.Controllers
                 _logger.LogWarning(ex, $"Form not found: {formId}");
                 return NotFound(new { error = ex.Message, code = ex.ErrorCode });
             }
-            catch (FormUnauthorizedException ex)
-            {
-                _logger.LogWarning(ex, $"Unauthorized form delete attempt: {formId}");
-                return Forbid(ex.Message);
-            }
             catch (FormOperationException ex)
             {
                 _logger.LogWarning(ex, $"Form operation failed: {formId}");
@@ -215,11 +205,6 @@ namespace Backend.Controllers
             {
                 _logger.LogWarning(ex, $"Form not found: {formId}");
                 return NotFound(new { error = ex.Message, code = ex.ErrorCode });
-            }
-            catch (FormUnauthorizedException ex)
-            {
-                _logger.LogWarning(ex, $"Unauthorized form publish attempt: {formId}");
-                return Forbid(ex.Message);
             }
             catch (FormOperationException ex)
             {

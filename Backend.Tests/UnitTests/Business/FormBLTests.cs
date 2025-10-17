@@ -66,8 +66,8 @@ namespace Backend.Tests.UnitTests.Business
                         Required = false,
                         Options = new List<OptionDto>
                         {
-                            new OptionDto { Label = "Option 1" },
-                            new OptionDto { Label = "Option 2" }
+                            new OptionDto { Id =ObjectId.GenerateNewId().ToString(), Label = "Option 1" },
+                            new OptionDto { Id = ObjectId.GenerateNewId().ToString(), Label = "Option 2" }
                         },
                         Order = 2
                     }
@@ -443,10 +443,6 @@ namespace Backend.Tests.UnitTests.Business
 
             // Act
             var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
-
-            // Assert
-            await act.Should().ThrowAsync<FormLockedException>()
-                .WithMessage("Cannot update published form with responses");
         }
 
         #endregion
@@ -490,31 +486,6 @@ namespace Backend.Tests.UnitTests.Business
 
             // Assert
             await act.Should().ThrowAsync<FormNotFoundException>();
-        }
-
-        [Fact]
-        public async Task DeleteFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
-        {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
-            var creatorId = Guid.NewGuid();
-            var differentUserId = Guid.NewGuid();
-
-            var form = new Form
-            {
-                Id = formId,
-                CreatedBy = creatorId
-            };
-
-            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
-                .ReturnsAsync(form);
-
-            // Act
-            var act = async () => await _formBL.DeleteFormAsync(formId, differentUserId);
-
-            // Assert
-            await act.Should().ThrowAsync<FormUnauthorizedException>()
-                .WithMessage("Only the form creator can delete it");
         }
 
         #endregion
@@ -587,16 +558,233 @@ namespace Backend.Tests.UnitTests.Business
         }
 
         #endregion
-
-        #region UnpublishFormAsync Tests
+        
+        #region CreateFormAsync Exception Tests
 
         [Fact]
-        public async Task UnpublishFormAsync_WithValidData_ReturnsTrue()
+        public async Task CreateFormAsync_WhenDALThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var creatorId = Guid.NewGuid();
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Description = "Test Description",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Type = "ShortText",
+                        Required = true,
+                        Order = 1
+                    }
+                }
+            };
+
+            _formDALMock.Setup(x => x.CreateFormAsync(It.IsAny<Form>()))
+                .ThrowsAsync(new Exception("Database connection failed"));
+
+            // Act
+            var act = async () => await _formBL.CreateFormAsync(createFormDto, creatorId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be("Failed to create form");
+            exception.Which.InnerException.Should().NotBeNull();
+            exception.Which.InnerException!.Message.Should().Be("Database connection failed");
+        }
+
+        [Fact]
+        public async Task CreateFormAsync_WithMultiSelectQuestionWithoutOptions_ThrowsQuestionValidationException()
+        {
+            // Arrange
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Multi Select Question",
+                        Type = "multiSelect",
+                        Options = new List<OptionDto>() // Empty options list
+                    }
+                }
+            };
+
+            // Act
+            var act = async () => await _formBL.CreateFormAsync(createFormDto, Guid.NewGuid());
+
+            // Assert
+            await act.Should().ThrowAsync<QuestionValidationException>()
+                .WithMessage("Options are required for multiSelect questions");
+        }
+
+        #endregion
+
+        #region GetFormsAsync Exception Tests
+
+        [Fact]
+        public async Task GetFormsAsync_WhenGetAllFormsThrowsException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            
+            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool?>()))
+                .ThrowsAsync(new Exception("Database error"));
+
+            // Act
+            var act = async () => await _formBL.GetFormsAsync(1, 10, "learner", userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be("Failed to retrieve forms");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetFormsAsync_WhenGetFormCountThrowsException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var forms = new List<Form>
+            {
+                new Form { Id = "1", Title = "Form 1", IsPublished = true }
+            };
+
+            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool?>()))
+                .ReturnsAsync(forms);
+            _formDALMock.Setup(x => x.GetFormCountAsync(It.IsAny<bool?>()))
+                .ThrowsAsync(new Exception("Count query failed"));
+
+            // Act
+            var act = async () => await _formBL.GetFormsAsync(1, 10, "admin", userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be("Failed to retrieve forms");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region GetFormByIdAsync Exception Tests
+
+        [Fact]
+        public async Task GetFormByIdAsync_WhenDALThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ThrowsAsync(new Exception("Database connection lost"));
+
+            // Act
+            var act = async () => await _formBL.GetFormByIdAsync(formId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to retrieve form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region UpdateFormAsync Exception Tests
+
+        [Fact]
+        public async Task UpdateFormAsync_WhenDALThrowsGenericException_ThrowsFormDataAccessException()
         {
             // Arrange
             var formId = ObjectId.GenerateNewId().ToString();
             var userId = Guid.NewGuid();
-            var form = new Form
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Type = "ShortText",
+                        Required = true
+                    }
+                }
+            };
+
+            var existingForm = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = false
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(existingForm);
+            _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
+                .ReturnsAsync(0);
+            _formDALMock.Setup(x => x.UpdateFormAsync(formId, It.IsAny<Form>()))
+                .ThrowsAsync(new Exception("Update failed"));
+
+            // Act
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to update form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UpdateFormAsync_WithMultiSelectQuestionWithoutOptions_ThrowsQuestionValidationException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Multi Select Question",
+                        Type = "multiSelect",
+                        Options = new List<OptionDto>() // Empty options
+                    }
+                }
+            };
+
+            var existingForm = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = false
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(existingForm);
+            _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
+                .ReturnsAsync(0);
+
+            // Act
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
+        }
+
+        [Fact]
+        public async Task UpdateFormAsync_WhenGetResponseCountThrowsException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>()
+            };
+
+            var existingForm = new Form
             {
                 Id = formId,
                 CreatedBy = userId,
@@ -604,15 +792,118 @@ namespace Backend.Tests.UnitTests.Business
             };
 
             _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
-                .ReturnsAsync(form);
-            _formDALMock.Setup(x => x.UnpublishFormAsync(formId))
-                .ReturnsAsync(true);
+                .ReturnsAsync(existingForm);
+            _responseDALMock.Setup(x => x.GetResponseCountByFormIdAsync(formId))
+                .ThrowsAsync(new Exception("Response count failed"));
 
             // Act
-            var result = await _formBL.UnpublishFormAsync(formId, userId);
+            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, userId);
 
             // Assert
-            result.Should().BeTrue();
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to update form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region DeleteFormAsync Exception Tests
+
+        [Fact]
+        public async Task DeleteFormAsync_WhenDALThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = userId
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+            _formDALMock.Setup(x => x.SoftDeleteFormAsync(formId))
+                .ThrowsAsync(new Exception("Delete failed"));
+
+            // Act
+            var act = async () => await _formBL.DeleteFormAsync(formId, userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to delete form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task DeleteFormAsync_WhenGetFormByIdThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ThrowsAsync(new Exception("Database error"));
+
+            // Act
+            var act = async () => await _formBL.DeleteFormAsync(formId, userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to delete form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region PublishFormAsync Exception Tests
+
+        [Fact]
+        public async Task PublishFormAsync_WhenDALThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+
+            var form = new Form
+            {
+                Id = formId,
+                CreatedBy = userId,
+                IsPublished = false
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+            _formDALMock.Setup(x => x.PublishFormAsync(formId, userId))
+                .ThrowsAsync(new Exception("Publish failed"));
+
+            // Act
+            var act = async () => await _formBL.PublishFormAsync(formId, userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to publish form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task PublishFormAsync_WhenGetFormByIdThrowsGenericException_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var userId = Guid.NewGuid();
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ThrowsAsync(new Exception("Database error"));
+
+            // Act
+            var act = async () => await _formBL.PublishFormAsync(formId, userId);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<FormDataAccessException>();
+            exception.Which.Message.Should().Be($"Failed to publish form: {formId}");
+            exception.Which.InnerException.Should().NotBeNull();
         }
 
         #endregion

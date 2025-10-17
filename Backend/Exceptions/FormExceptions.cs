@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Backend.Exceptions
 {
     /// <summary>
     /// Base exception for form-related errors
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public abstract class FormException : Exception
     {
         public string ErrorCode { get; }

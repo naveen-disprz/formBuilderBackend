@@ -24,7 +24,4 @@ public class FileUpload
     public string FileContent { get; set; } // Base64 encoded
 
     [Required] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    // Navigation properties
-    [ForeignKey("AnswerId")] public virtual Answer Answer { get; set; }
 }

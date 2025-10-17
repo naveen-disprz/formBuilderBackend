@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc.Filters;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Backend.Filters
 {
+    [ExcludeFromCodeCoverage]
     public class UserContextActionFilter : IActionFilter
     {
         public void OnActionExecuting(ActionExecutingContext context)

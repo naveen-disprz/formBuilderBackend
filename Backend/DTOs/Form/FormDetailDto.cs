@@ -25,6 +25,7 @@ public class QuestionDetailDto
     public string Label { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Type { get; set; }
+    public string? DateFormat { get; set; }
     public bool Required { get; set; }
     public List<OptionDetailDto>? Options { get; set; }
     public int Order { get; set; }

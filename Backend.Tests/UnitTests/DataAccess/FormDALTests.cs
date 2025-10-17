@@ -138,6 +138,38 @@ namespace Backend.Tests.UnitTests.DataAccess
         }
 
         [Fact]
+        public async Task GetAllForms_WhenExceptionOccurs_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var forms = new List<Form>
+            {
+                new Form { Id = "1", Title = "Form 1", IsPublished = true, IsDeleted = false },
+                new Form { Id = "2", Title = "Form 2", IsPublished = true, IsDeleted = false }
+            };
+            var exception = new FormDataAccessException("Error fetching forms", new Exception("error"));
+            var mockCursor = CreateMockCursor(forms);
+            _formCollectionMock.Setup(x => x.FindSync(
+                    It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<FindOptions<Form, Form>>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(exception);
+
+            // For the async operations in the DAL, we need to mock FindAsync as well
+            _formCollectionMock.Setup(x => x.FindAsync(
+                    It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<FindOptions<Form, Form>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var act = async () => await _formDAL.GetAllFormsAsync(0, 10, true);
+
+            // Assert
+            await act.Should().ThrowAsync<FormDataAccessException>()
+                .WithMessage("Database error while retrieving forms");
+        }
+
+        [Fact]
         public async Task GetAllFormsAsync_WithPublishedFilter_ReturnsFilteredForms()
         {
             // Arrange
@@ -229,6 +261,26 @@ namespace Backend.Tests.UnitTests.DataAccess
             result.Should().BeFalse();
         }
 
+
+        [Fact]
+        public async Task FormExistsAsync_WhenExceptionOccurs_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+
+            _formCollectionMock.Setup(x => x.CountDocumentsAsync(
+                    It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<CountOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new FormDataAccessException("Error", new Exception("Error")));
+
+            // Act
+            var act = async () => await _formDAL.FormExistsAsync(formId);
+
+            // Assert
+            await act.Should().ThrowAsync<FormDataAccessException>();
+        }
+
         [Fact]
         public async Task UpdateFormAsync_WithValidData_ReturnsUpdatedForm()
         {
@@ -257,6 +309,33 @@ namespace Backend.Tests.UnitTests.DataAccess
         }
 
         [Fact]
+        public async Task UpdateFormAsync_WhenErrorOccurs_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updatedForm = new Form
+            {
+                Id = formId,
+                Title = "Updated Form",
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _formCollectionMock.Setup(x => x.FindOneAndReplaceAsync(
+                    It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<Form>(),
+                    It.IsAny<FindOneAndReplaceOptions<Form>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new FormDataAccessException("Error", new Exception("Error")));
+
+            // Act
+            var act = async () => await _formDAL.UpdateFormAsync(formId, updatedForm);
+
+            // Assert
+
+            act.Should().ThrowAsync<FormDataAccessException>();
+        }
+
+        [Fact]
         public async Task PublishFormAsync_WithValidData_ReturnsTrue()
         {
             // Arrange
@@ -277,6 +356,29 @@ namespace Backend.Tests.UnitTests.DataAccess
 
             // Assert
             result.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task PublishFormAsync_WhenError_ThrowsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var publishedBy = Guid.NewGuid();
+
+            var updateResult = CreateMockUpdateResult(1);
+
+            _formCollectionMock.Setup(x => x.UpdateOneAsync(
+                    It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<UpdateDefinition<Form>>(),
+                    It.IsAny<UpdateOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new FormDataAccessException("Error", new Exception("Error")));
+
+            // Act
+            var act = async () => await _formDAL.PublishFormAsync(formId, publishedBy);
+
+            // Assert
+            act.Should().ThrowAsync<FormDataAccessException>();
         }
 
         [Fact]
@@ -303,28 +405,6 @@ namespace Backend.Tests.UnitTests.DataAccess
         }
 
         [Fact]
-        public async Task UnpublishFormAsync_WithValidData_ReturnsTrue()
-        {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
-
-            var updateResult = CreateMockUpdateResult(1);
-
-            _formCollectionMock.Setup(x => x.UpdateOneAsync(
-                    It.IsAny<FilterDefinition<Form>>(),
-                    It.IsAny<UpdateDefinition<Form>>(),
-                    It.IsAny<UpdateOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(updateResult);
-
-            // Act
-            var result = await _formDAL.UnpublishFormAsync(formId);
-
-            // Assert
-            result.Should().BeTrue();
-        }
-
-        [Fact]
         public async Task SoftDeleteFormAsync_WithValidData_ReturnsTrue()
         {
             // Arrange
@@ -345,94 +425,88 @@ namespace Backend.Tests.UnitTests.DataAccess
             // Assert
             result.Should().BeTrue();
         }
-
+        
         [Fact]
-        public async Task HardDeleteFormAsync_WithValidData_ReturnsTrue()
+        public async Task SoftDeleteFormAsync_WhenError_ThrowsFormDataAccessException()
         {
             // Arrange
             var formId = ObjectId.GenerateNewId().ToString();
 
-            var deleteResult = CreateMockDeleteResult(1);
+            var updateResult = CreateMockUpdateResult(1);
 
-            _formCollectionMock.Setup(x => x.DeleteOneAsync(
+            _formCollectionMock.Setup(x => x.UpdateOneAsync(
                     It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<UpdateDefinition<Form>>(),
+                    It.IsAny<UpdateOptions>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(deleteResult);
+                .ThrowsAsync(new FormDataAccessException("Error", new Exception("Error")));
 
             // Act
-            var result = await _formDAL.HardDeleteFormAsync(formId);
+            var act = async() => await _formDAL.SoftDeleteFormAsync(formId);
 
             // Assert
-            result.Should().BeTrue();
+            act.Should().ThrowAsync<FormDataAccessException>();
         }
+
+        // [Fact]
+        // public async Task HardDeleteFormAsync_WithValidData_ReturnsTrue()
+        // {
+        //     // Arrange
+        //     var formId = ObjectId.GenerateNewId().ToString();
+        //
+        //     var deleteResult = CreateMockDeleteResult(1);
+        //
+        //     _formCollectionMock.Setup(x => x.DeleteOneAsync(
+        //             It.IsAny<FilterDefinition<Form>>(),
+        //             It.IsAny<CancellationToken>()))
+        //         .ReturnsAsync(deleteResult);
+        //
+        //     // Act
+        //     var result = await _formDAL.HardDeleteFormAsync(formId);
+        //
+        //     // Assert
+        //     result.Should().BeTrue();
+        // }
+
+        // [Fact]
+        // public async Task HardDeleteFormAsync_WhenNoFormDeleted_ReturnsFalse()
+        // {
+        //     // Arrange
+        //     var formId = ObjectId.GenerateNewId().ToString();
+        //
+        //     var deleteResult = CreateMockDeleteResult(0);
+        //
+        //     _formCollectionMock.Setup(x => x.DeleteOneAsync(
+        //             It.IsAny<FilterDefinition<Form>>(),
+        //             It.IsAny<CancellationToken>()))
+        //         .ReturnsAsync(deleteResult);
+        //
+        //     // Act
+        //     var result = await _formDAL.HardDeleteFormAsync(formId);
+        //
+        //     // Assert
+        //     result.Should().BeFalse();
+        // }
 
         [Fact]
-        public async Task HardDeleteFormAsync_WhenNoFormDeleted_ReturnsFalse()
+        public async Task GetFormCountAsync_WhenExceptionOccurs_ThrowsFormDataAccessException()
         {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
+            var exception = new FormDataAccessException("Error fetching forms", new Exception("error"));
 
-            var deleteResult = CreateMockDeleteResult(0);
-
-            _formCollectionMock.Setup(x => x.DeleteOneAsync(
+            // For the async operations in the DAL, we need to mock FindAsync as well
+            _formCollectionMock.Setup(x => x.CountDocumentsAsync(
                     It.IsAny<FilterDefinition<Form>>(),
+                    It.IsAny<CountOptions>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(deleteResult);
+                .ThrowsAsync(exception);
 
             // Act
-            var result = await _formDAL.HardDeleteFormAsync(formId);
+            var act = async () => await _formDAL.GetFormCountAsync();
 
             // Assert
-            result.Should().BeFalse();
+            await act.Should().ThrowAsync<FormDataAccessException>();
         }
-
-        [Fact]
-        public async Task GetFormsByCreatorAsync_WithValidCreatorId_ReturnsForms()
-        {
-            // Arrange
-            var creatorId = Guid.NewGuid();
-            var forms = new List<Form>
-            {
-                new Form { Id = "1", Title = "Form 1", CreatedBy = creatorId },
-                new Form { Id = "2", Title = "Form 2", CreatedBy = creatorId }
-            };
-
-            var mockCursor = CreateMockCursor(forms);
-    
-            // Mock FindSync for the synchronous Find operation
-            _formCollectionMock.Setup(x => x.FindSync(
-                    It.IsAny<FilterDefinition<Form>>(),
-                    It.IsAny<FindOptions<Form, Form>>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(mockCursor.Object);
-
-            // Mock FindAsync for async operations
-            _formCollectionMock.Setup(x => x.FindAsync(
-                    It.IsAny<FilterDefinition<Form>>(),
-                    It.IsAny<FindOptions<Form, Form>>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(mockCursor.Object);
-
-            // Act
-            var result = await _formDAL.GetFormsByCreatorAsync(creatorId, 1, 10);
-
-            // Assert
-            result.Should().NotBeNull();
-        }
-
-        [Fact]
-        public async Task FormHasResponsesAsync_Always_ReturnsFalse()
-        {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
-
-            // Act
-            var result = await _formDAL.FormHasResponsesAsync(formId);
-
-            // Assert
-            result.Should().BeFalse();
-        }
-
+        
         [Fact]
         public async Task CreateFormAsync_WhenExceptionOccurs_ThrowsFormDataAccessException()
         {

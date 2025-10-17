@@ -396,6 +396,266 @@ namespace Backend.Tests.UnitTests.DataAccess
             // Assert
             result.Should().BeFalse();
         }
+        
+        [Fact]
+        public async Task CreateResponseAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var response = new Response
+            {
+                FormId = "507f1f77bcf86cd799439011",
+                SubmittedBy = Guid.NewGuid(),
+                ClientIp = "192.168.1.1",
+                UserAgent = "Mozilla/5.0"
+            };
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.CreateResponseAsync(response));
+
+            exception.Message.Should().Be("Database error while creating response");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task CreateAnswerAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var answer = new Answer
+            {
+                ResponseId = Guid.NewGuid(),
+                QuestionId = "507f1f77bcf86cd799439011",
+                AnswerType = QuestionType.ShortText,
+                AnswerValue = "Test Answer"
+            };
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.CreateAnswerAsync(answer));
+
+            exception.Message.Should().Be("Database error while creating answer");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task CreateFileUploadAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var file = new FileUpload
+            {
+                AnswerId = Guid.NewGuid(),
+                FileName = "test.pdf",
+                MimeType = "application/pdf",
+                FileSizeBytes = 1024,
+                FileContent = "base64content"
+            };
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.CreateFileUploadAsync(file));
+
+            exception.Message.Should().Be("Database error while creating file upload");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetResponseByIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var responseId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetResponseByIdAsync(responseId));
+
+            exception.Message.Should().Be($"Database error while retrieving response: {responseId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetResponsesByFormIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var formId = "507f1f77bcf86cd799439011";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetResponsesByFormIdAsync(formId, 1, 10));
+
+            exception.Message.Should().Be($"Database error while retrieving responses for form: {formId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetResponsesByUserIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var userId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetResponsesByUserIdAsync(userId, 1, 10));
+
+            exception.Message.Should().Be($"Database error while retrieving responses for user: {userId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetAnswersByResponseIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var responseId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetAnswersByResponseIdAsync(responseId));
+
+            exception.Message.Should().Be($"Database error while retrieving answers for response: {responseId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetFileByIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var fileId = Guid.NewGuid();
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetFileByIdAsync(fileId));
+
+            exception.Message.Should().Be($"Database error while retrieving file: {fileId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task GetResponseCountByFormIdAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var formId = "507f1f77bcf86cd799439011";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.GetResponseCountByFormIdAsync(formId));
+
+            exception.Message.Should().Be($"Database error while counting responses for form: {formId}");
+            exception.InnerException.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UserHasRespondedToFormAsync_WhenDatabaseError_ThrowsResponseDataAccessException()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var responseDAL = new ResponseDAL(context, _loggerMock.Object);
+
+            var userId = Guid.NewGuid();
+            var formId = "507f1f77bcf86cd799439011";
+
+            // Force an error by disposing the context
+            await context.DisposeAsync();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<ResponseDataAccessException>(
+                () => responseDAL.UserHasRespondedToFormAsync(userId, formId));
+
+            exception.Message.Should().Be($"Database error while checking user response for form: {formId}");
+            exception.InnerException.Should().NotBeNull();
+        }
 
 
         public void Dispose()

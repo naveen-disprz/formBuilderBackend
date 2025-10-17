@@ -87,28 +87,6 @@ namespace Backend.DataAccess
             }
         }
 
-        public async Task<List<Form>> GetFormsByCreatorAsync(Guid creatorId, int page, int pageSize)
-        {
-            try
-            {
-                var filter = Builders<Form>.Filter.And(
-                    Builders<Form>.Filter.Eq(f => f.CreatedBy, creatorId),
-                    Builders<Form>.Filter.Eq(f => f.IsDeleted, false)
-                );
-
-                return await _forms.Find(filter)
-                    .SortByDescending(f => f.CreatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Limit(pageSize)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error getting forms by creator: {creatorId}");
-                throw new FormDataAccessException($"Database error while retrieving forms for creator: {creatorId}", ex);
-            }
-        }
-
         public async Task<long> GetFormCountAsync(bool? isPublished = null)
         {
             try
@@ -195,25 +173,6 @@ namespace Backend.DataAccess
             }
         }
 
-        public async Task<bool> UnpublishFormAsync(string formId)
-        {
-            try
-            {
-                var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
-                var update = Builders<Form>.Update
-                    .Set(f => f.IsPublished, false)
-                    .Set(f => f.UpdatedAt, DateTime.UtcNow);
-
-                var result = await _forms.UpdateOneAsync(filter, update);
-                return result.ModifiedCount > 0;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error unpublishing form: {formId}");
-                throw new FormDataAccessException($"Database error while unpublishing form: {formId}", ex);
-            }
-        }
-
         public async Task<bool> SoftDeleteFormAsync(string formId)
         {
             try
@@ -232,35 +191,20 @@ namespace Backend.DataAccess
                 throw new FormDataAccessException($"Database error while deleting form: {formId}", ex);
             }
         }
-
-        public async Task<bool> HardDeleteFormAsync(string formId)
-        {
-            try
-            {
-                var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
-                var result = await _forms.DeleteOneAsync(filter);
-                return result.DeletedCount > 0;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error hard deleting form: {formId}");
-                throw new FormDataAccessException($"Database error while permanently deleting form: {formId}", ex);
-            }
-        }
-
-        public async Task<bool> FormHasResponsesAsync(string formId)
-        {
-            try
-            {
-                // This would typically check the SQL Server Responses table
-                // For now, returning false as placeholder
-                return await Task.FromResult(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error checking form responses: {formId}");
-                throw new FormDataAccessException($"Database error while checking form responses: {formId}", ex);
-            }
-        }
+        //
+        // public async Task<bool> HardDeleteFormAsync(string formId)
+        // {
+        //     try
+        //     {
+        //         var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
+        //         var result = await _forms.DeleteOneAsync(filter);
+        //         return result.DeletedCount > 0;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, $"Error hard deleting form: {formId}");
+        //         throw new FormDataAccessException($"Database error while permanently deleting form: {formId}", ex);
+        //     }
+        // }
     }
 }

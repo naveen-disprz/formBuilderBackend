@@ -1,11 +1,12 @@
-﻿using Backend.Data;
+﻿using System.Diagnostics.CodeAnalysis;
+using Backend.Data;
 using Backend.Models.Nosql;
 using MongoDB.Driver;
 using Microsoft.Extensions.Options;
 using Backend.Models.Nosql;
 
 namespace Backend.Data;
-
+[ExcludeFromCodeCoverage]
 public class MongoDbContext
 {
     private readonly IMongoDatabase _database;

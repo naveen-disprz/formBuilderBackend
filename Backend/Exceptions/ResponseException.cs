@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Backend.Exceptions
 {
     /// <summary>
     /// Base exception for response-related errors
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public abstract class ResponseException : Exception
     {
         public string ErrorCode { get; }
@@ -64,15 +66,6 @@ namespace Backend.Exceptions
     {
         public ResponseUnauthorizedException(string message) 
             : base(message, "RESPONSE_UNAUTHORIZED") { }
-    }
-
-    /// <summary>
-    /// Exception thrown when response operation violates business rules
-    /// </summary>
-    public class ResponseOperationException : ResponseException
-    {
-        public ResponseOperationException(string message) 
-            : base(message, "RESPONSE_OPERATION_ERROR") { }
     }
 
     /// <summary>

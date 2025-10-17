@@ -51,11 +51,6 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.AnswerId);
             entity.HasIndex(e => e.ResponseId);
             entity.HasIndex(e => e.QuestionId);
-
-            entity.HasOne(e => e.Response)
-                .WithMany(r => r.Answers)
-                .HasForeignKey(e => e.ResponseId)
-                .OnDelete(DeleteBehavior.Cascade);
             
             entity.Property(e => e.AnswerType)
                 .HasConversion<string>()
@@ -67,11 +62,6 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.FileId);
             entity.HasIndex(e => e.AnswerId);
-
-            entity.HasOne(e => e.Answer)
-                .WithMany(a => a.Files)
-                .HasForeignKey(e => e.AnswerId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

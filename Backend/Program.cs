@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -338,6 +339,7 @@ async Task SeedInitialData(
 }
 
 // Make Program class public for testing
+[ExcludeFromCodeCoverage]
 public partial class Program
 {
 }

@@ -22,9 +22,6 @@ public class Answer
     [Column(TypeName = "nvarchar(max)")] public string? AnswerValue { get; set; }
 
     [Required] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    // Navigation properties
-    [ForeignKey("ResponseId")] public virtual Response Response { get; set; }
-
+    
     public virtual ICollection<FileUpload> Files { get; set; } = new List<FileUpload>();
 }

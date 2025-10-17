@@ -124,6 +124,33 @@ namespace Backend.Tests.UnitTests.Controllers
             // Assert
             result.Should().BeOfType<BadRequestObjectResult>();
         }
+        
+        [Fact]
+        public async Task CreateForm_WithSingleSelectQuestionWithNoOptions_ReturnsBadRequest()
+        {
+            var createFormDto = new CreateFormDto { Title = "Test", Questions =  new List<QuestionDto>() {new QuestionDto
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                DateFormat = null,
+                Description = null,
+                Label = "Hello",
+                Options = null,
+                Order = 0,
+                Required = true,
+                Type = "singleSelect"
+            }} };
+            var exception = new QuestionValidationException("Validation failed");
+
+            _formBLMock.Setup(x => x.CreateFormAsync(It.IsAny<CreateFormDto>(), It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.CreateForm(createFormDto);
+
+            // Assert
+            var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+            badRequestResult.Value.Should().NotBeNull();
+        }
 
         [Fact]
         public async Task CreateForm_WhenFormValidationExceptionOccurs_ReturnsBadRequest()
@@ -210,6 +237,62 @@ namespace Backend.Tests.UnitTests.Controllers
             // Assert
             var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
             statusCodeResult.StatusCode.Should().Be(500);
+        }
+        
+        [Fact]
+        public async Task GetFormsById_WhenDataAccessExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var exception = new FormDataAccessException("Database error", new Exception());
+
+            _formBLMock.Setup(x => x.GetFormByIdAsync(It.IsAny<string>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.GetFormById("pionb");
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+        }
+        
+        [Fact]
+        public async Task UpdateForm_WhenDataAccessExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var exception = new FormDataAccessException("Database error", new Exception());
+
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Type = "ShortText",
+                        Required = true
+                    }
+                }
+            };
+
+            var formDetailDto = new FormDetailDto
+            {
+                Id = formId,
+                Title = updateFormDto.Title,
+                CreatedBy = _testUserId
+            };
+
+            _formBLMock.Setup(x => x.UpdateFormAsync(formId, updateFormDto, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.UpdateForm(formId, updateFormDto);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);   
         }
 
         #endregion
@@ -402,6 +485,25 @@ namespace Backend.Tests.UnitTests.Controllers
             var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
             badRequestResult.Value.Should().NotBeNull();
         }
+        
+        [Fact]
+        public async Task DeleteForm_Error_ReturnsBadRequest()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            
+            var exception = new FormDataAccessException("Error", new Exception("Error"));
+
+            _formBLMock.Setup(x => x.DeleteFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.DeleteForm(formId);
+
+            // Assert
+            var badRequestResult = result.Should().BeOfType<ObjectResult>().Subject;
+            badRequestResult.Value.ToString().Should().Contain("Error");
+        }
 
         [Fact]
         public async Task DeleteForm_WhenFormNotFound_ReturnsNotFound()
@@ -473,6 +575,262 @@ namespace Backend.Tests.UnitTests.Controllers
 
             // Assert
             result.Should().BeOfType<NotFoundObjectResult>();
+        }
+        
+        [Fact]
+        public async Task PublishForm_Error_ReturnsFormDataAccessException()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var exception = new FormDataAccessException("Error",new Exception(("Error")));
+
+            _formBLMock.Setup(x => x.PublishFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.PublishForm(formId);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.Value.ToString().Should().Contain("Error");
+        }
+
+        #endregion
+        
+        #region CreateForm Exception Tests
+
+        [Fact]
+        public async Task CreateForm_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var createFormDto = new CreateFormDto
+            {
+                Title = "Test Form",
+                Description = "Test Description",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Type = "ShortText",
+                        Required = true
+                    }
+                }
+            };
+
+            _formBLMock.Setup(x => x.CreateFormAsync(It.IsAny<CreateFormDto>(), It.IsAny<Guid>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.CreateForm(createFormDto);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region GetForms Exception Tests
+
+        [Fact]
+        public async Task GetForms_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), 
+                It.IsAny<string>(), It.IsAny<Guid>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.GetForms();
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region GetFormById Exception Tests
+
+        [Fact]
+        public async Task GetFormById_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            
+            _formBLMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.GetFormById(formId);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region UpdateForm Exception Tests
+
+        [Fact]
+        public async Task UpdateForm_WhenQuestionValidationExceptionOccurs_ReturnsBadRequest()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Label = "Question 1",
+                        Type = "SingleSelect",
+                        Required = true,
+                        Options = null // This should cause validation error
+                    }
+                }
+            };
+
+            var exception = new QuestionValidationException("Options are required for SingleSelect questions");
+
+            _formBLMock.Setup(x => x.UpdateFormAsync(formId, updateFormDto, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.UpdateForm(formId, updateFormDto);
+
+            // Assert
+            var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+            badRequestResult.Value.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task UpdateForm_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updateFormDto = new UpdateFormDto
+            {
+                Title = "Updated Form",
+                Questions = new List<QuestionDto>()
+            };
+
+            _formBLMock.Setup(x => x.UpdateFormAsync(formId, updateFormDto, It.IsAny<Guid>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.UpdateForm(formId, updateFormDto);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region DeleteForm Exception Tests
+
+        [Fact]
+        public async Task DeleteForm_WhenFormOperationExceptionOccurs_ReturnsBadRequest()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var exception = new FormOperationException("Cannot delete form with responses");
+
+            _formBLMock.Setup(x => x.DeleteFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.DeleteForm(formId);
+
+            // Assert
+            var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+            badRequestResult.Value.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task DeleteForm_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+
+            _formBLMock.Setup(x => x.DeleteFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.DeleteForm(formId);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region PublishForm Exception Tests
+
+        [Fact]
+        public async Task PublishForm_WhenFormOperationExceptionOccurs_ReturnsBadRequest()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var exception = new FormOperationException("Form is already published");
+
+            _formBLMock.Setup(x => x.PublishFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(exception);
+
+            // Act
+            var result = await _formController.PublishForm(formId);
+
+            // Assert
+            var badRequestResult = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+            badRequestResult.Value.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task PublishForm_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+
+            _formBLMock.Setup(x => x.PublishFormAsync(formId, It.IsAny<Guid>()))
+                .ThrowsAsync(new Exception("Unexpected error"));
+
+            // Act
+            var result = await _formController.PublishForm(formId);
+
+            // Assert
+            var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusCodeResult.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().NotBeNull();
+        }
+
+        #endregion
+
+        #region Edge Cases
+
+        [Fact]
+        public async Task UpdateForm_WithInvalidModelState_ReturnsBadRequest()
+        {
+            // Arrange
+            var formId = ObjectId.GenerateNewId().ToString();
+            var updateFormDto = new UpdateFormDto();
+            
+            _formController.ModelState.AddModelError("Title", "Title is required");
+
+            // Act
+            var result = await _formController.UpdateForm(formId, updateFormDto);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
         }
 
         #endregion
