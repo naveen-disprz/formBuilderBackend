@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using Backend.Business;
 using Backend.DTOs.Auth;
 using Backend.Exceptions;
+using Backend.Filters;
 
 namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    [ServiceFilter(typeof(UserContextActionFilter))]
+    public class AuthController : BaseApiController
     {
         private readonly IAuthBL _authService;
         private readonly ILogger<AuthController> _logger;
@@ -162,31 +164,30 @@ namespace Backend.Controllers
         {
             try
             {
-                var token = Request.Headers["Authorization"]
-                    .FirstOrDefault()?.Split(" ").Last();
+                // var token = Request.Headers["Authorization"]
+                //     .FirstOrDefault()?.Split(" ").Last();
+                //
+                // if (string.IsNullOrEmpty(token))
+                // {
+                //     throw new TokenException("No token provided");
+                // }
 
-                if (string.IsNullOrEmpty(token))
+                // var isValid = await _authService.ValidateTokenAsync(token);
+
+
+                return Ok(new
                 {
-                    throw new TokenException("No token provided");
-                }
-
-                var isValid = await _authService.ValidateTokenAsync(token);
-
-                if (isValid)
-                {
-                    // Get user info from token claims
-                    var userId = User.FindFirst("UserId")?.Value;
-                    var email = User.FindFirst("Email")?.Value;
-                    var role = User.FindFirst("Role")?.Value;
-
-                    return Ok(new
-                    {
-                        valid = true,
-                        userId,
-                        email,
-                        role
-                    });
-                }
+                    valid = true,
+                    userId = CurrentUserId,
+                    role = CurrentUserRole
+                });
+                // if (isValid)
+                //{
+                // Get user info from token claims
+                // var userId = User.FindFirst("UserId")?.Value;
+                // var email = User.FindFirst("Email")?.Value;
+                // var role = User.FindFirst("Role")?.Value;
+                //}
 
                 return Unauthorized(new { valid = false, code = "INVALID_TOKEN" });
             }

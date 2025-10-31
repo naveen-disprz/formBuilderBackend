@@ -16,8 +16,11 @@ public class ResponseItemDto
 {
     public Guid ResponseId { get; set; }
     public string FormId { get; set; } = string.Empty;
+    public string? FormName { get; set; } = string.Empty;
     public Guid SubmittedBy { get; set; }
     public string SubmitterUsername { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; }
     public int AnswerCount { get; set; }
+    public string? ClientIp { get; set; }
+    public string? UserAgent { get; set; }
 }

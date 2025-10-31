@@ -11,7 +11,7 @@ namespace Backend.DTOs.Response;
         public Guid SubmittedBy { get; set; }
         public string SubmitterUsername { get; set; } = string.Empty;
         public DateTime SubmittedAt { get; set; }
-        public string? ClientIp { get; set; }
+        public string? ClientIp { get; set; }   
         public string? UserAgent { get; set; }
         public List<AnswerDetailDto> Answers { get; set; } = new();
     }

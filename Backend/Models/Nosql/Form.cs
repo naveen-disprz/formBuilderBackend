@@ -23,6 +23,8 @@ public class Form
     [BsonElement("isPublished")] public bool IsPublished { get; set; } = false;
 
     [BsonElement("isDeleted")] public bool IsDeleted { get; set; } = false;
+    
+    [BsonElement("visibility")] public bool Visibility { get; set; } = true;
 
     [BsonElement("createdBy")]
     [BsonRequired]

@@ -182,6 +182,24 @@ namespace Backend.DataAccess
             }
         }
 
+        public async Task<long> GetResponseCountByUserIdAsync(Guid userId)
+        {
+            {
+                try
+                {
+                    return await _context.Responses
+                        .Where(r => r.SubmittedBy == userId)
+                        .CountAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error getting response count for user: {userId}");
+                    throw new ResponseDataAccessException($"Database error while counting responses for user: {userId}",
+                        ex);
+                }
+            }
+        }
+
         public async Task<bool> UserHasRespondedToFormAsync(Guid userId, string formId)
         {
             try

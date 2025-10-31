@@ -70,7 +70,8 @@ builder.Services.AddScoped<MongoDbContext>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.WriteIndented = true;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
@@ -94,7 +95,8 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(
                     "http://localhost:3000",
                     "http://localhost:5173",
-                    "http://localhost:4200"
+                    "http://localhost:4200",
+                    "http://localhost:22660"
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
@@ -268,7 +270,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowSpecificOrigins");
 app.UseResponseCaching();
 
 // Uncomment when authentication is added

@@ -19,5 +19,6 @@ public interface IResponseDAL
     Task<List<Answer>> GetAnswersByResponseIdAsync(Guid responseId);
     Task<FileUpload?> GetFileByIdAsync(Guid fileId);
     Task<long> GetResponseCountByFormIdAsync(string formId);
+    Task<long> GetResponseCountByUserIdAsync(Guid userId);
     Task<bool> UserHasRespondedToFormAsync(Guid userId, string formId);
 }

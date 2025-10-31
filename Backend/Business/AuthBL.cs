@@ -88,7 +88,7 @@ namespace Backend.Business
                     UserId = createdUser.UserId,
                     Email = createdUser.Email,
                     Username = createdUser.Username,
-                    Role = createdUser.Role,
+                    Role = createdUser.Role.ToString(),
                     Message = "Registration successful",
                     ExpiresAt = DateTime.UtcNow.AddDays(7)
                 };
@@ -155,7 +155,7 @@ namespace Backend.Business
                     UserId = user.UserId,
                     Email = user.Email,
                     Username = user.Username,
-                    Role = user.Role,
+                    Role = user.Role.ToString(),
                     Message = "Login successful",
                     ExpiresAt = DateTime.UtcNow.AddDays(7)
                 };

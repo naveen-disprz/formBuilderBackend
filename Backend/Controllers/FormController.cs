@@ -222,5 +222,27 @@ namespace Backend.Controllers
                 return StatusCode(500, new { error = "An error occurred while publishing the form" });
             }
         }
+
+        [HttpPatch("{formId}/toggle-visibility")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
+        public async Task<IActionResult> ToggleVisibility(string formId, [FromQuery] bool visibility)
+        {
+            try
+            {
+                var result = await _formBL.ToggleVisibility(formId, visibility);
+
+                if (result)
+                {
+                    return Ok(new { message = "Form visibility changed successfully" });
+                }
+
+                throw new FormOperationException("Failed to publish form");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error publishing form: {formId}");
+                return StatusCode(500, new { error = "An error occurred while publishing the form" });
+            }
+        }
     }
 }

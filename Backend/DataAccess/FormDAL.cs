@@ -61,7 +61,8 @@ namespace Backend.DataAccess
             }
         }
 
-        public async Task<List<Form>> GetAllFormsAsync(int page, int pageSize, bool? isPublished = null)
+        public async Task<List<Form>> GetAllFormsAsync(int page, int pageSize, bool? isPublished = null,
+            bool? visibility = null)
         {
             try
             {
@@ -74,6 +75,12 @@ namespace Backend.DataAccess
                         filterBuilder.Eq(f => f.IsPublished, isPublished.Value));
                 }
 
+                if (visibility.HasValue)
+                {
+                    filter = filterBuilder.And(filter,
+                        filterBuilder.Eq(f => f.Visibility, visibility.Value));
+                }
+                
                 return await _forms.Find(filter)
                     .SortByDescending(f => f.CreatedAt)
                     .Skip((page - 1) * pageSize)
@@ -161,6 +168,25 @@ namespace Backend.DataAccess
                 var update = Builders<Form>.Update
                     .Set(f => f.IsPublished, true)
                     .Set(f => f.PublishedBy, publishedBy)
+                    .Set(f => f.UpdatedAt, DateTime.UtcNow);
+
+                var result = await _forms.UpdateOneAsync(filter, update);
+                return result.ModifiedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error publishing form: {formId}");
+                throw new FormDataAccessException($"Database error while publishing form: {formId}", ex);
+            }
+        }
+
+        public async Task<bool> ToggleVisibility(string formId, bool visibility)
+        {
+            try
+            {
+                var filter = Builders<Form>.Filter.Eq(f => f.Id, formId);
+                var update = Builders<Form>.Update
+                    .Set(f => f.Visibility, visibility)
                     .Set(f => f.UpdatedAt, DateTime.UtcNow);
 
                 var result = await _forms.UpdateOneAsync(filter, update);

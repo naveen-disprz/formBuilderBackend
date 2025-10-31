@@ -178,5 +178,21 @@ namespace Backend.Controllers
                 return StatusCode(500, new { error = "An error occurred while getting the file" });
             }
         }
+        
+        [HttpGet("responses")]
+        [Authorize(Roles = nameof(UserRole.Learner))]
+        public async Task<IActionResult> GetMyResponses([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var result = await _responseBL.GetResponsesByUserIdAsync(CurrentUserId, page, pageSize);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting responses for user: {CurrentUserId}");
+                return StatusCode(500, new { error = "An error occurred while getting responses" });
+            }
+        }
     }
 }

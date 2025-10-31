@@ -14,6 +14,8 @@ public class FormDetailDto
     public bool IsPublished { get; set; }
     public Guid CreatedBy { get; set; }
     public Guid? PublishedBy { get; set; }
+    
+    public bool Visibility { get; set; }
     public List<QuestionDetailDto> Questions { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

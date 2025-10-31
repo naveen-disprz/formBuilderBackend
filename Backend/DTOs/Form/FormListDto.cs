@@ -19,6 +19,13 @@ public class FormItemDto
     public string? Description { get; set; }
     public int QuestionCount { get; set; }
     public bool IsPublished { get; set; }
+    public bool? Visibility { get; set; }
+    public bool? Responded { get; set; }
+    
+    
+    public string? CreatorName { get; set; }
+    public string? PublisherName { get; set; }
     public DateTime CreatedAt { get; set; }
     public Guid CreatedBy { get; set; }
+    public Guid? PublishedBy { get; set; }
 }

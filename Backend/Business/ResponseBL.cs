@@ -161,11 +161,6 @@ namespace Backend.Business
                     throw new FormNotFoundForResponseException(formId);
                 }
 
-                if (form.CreatedBy != userId)
-                {
-                    throw new ResponseUnauthorizedException("You can only view responses for your own forms");
-                }
-
                 var responses = await _responseDAL.GetResponsesByFormIdAsync(formId, page, pageSize);
                 var totalCount = await _responseDAL.GetResponseCountByFormIdAsync(formId);
 
@@ -176,7 +171,9 @@ namespace Backend.Business
                     SubmittedBy = r.SubmittedBy,
                     SubmitterUsername = r.User?.Username ?? "Unknown",
                     SubmittedAt = r.SubmittedAt,
-                    AnswerCount = r.Answers?.Count ?? 0
+                    AnswerCount = r.Answers?.Count ?? 0,
+                    ClientIp = r.ClientIp,
+                    UserAgent = r.UserAgent,
                 }).ToList();
 
                 return new ResponseListDto
@@ -238,8 +235,10 @@ namespace Backend.Business
                         QuestionType = a.AnswerType.ToString(),
                         Value = a.AnswerType switch
                         {
-                            QuestionType.MultiSelect or QuestionType.SingleSelect => JsonSerializer.Deserialize<List<object>>(a.AnswerValue!),
-                            QuestionType.Number => int.Parse(a.AnswerValue!),
+                            QuestionType.MultiSelect or QuestionType.SingleSelect => JsonSerializer
+                                .Deserialize<List<object>>(a.AnswerValue!),
+                            QuestionType.Number => int.TryParse(a.AnswerValue, out int parsedValue) ? parsedValue : "",
+
                             _ => a.AnswerValue
                         },
                         Files = a.Files?.Select(f => new FileMetadataDto
@@ -274,6 +273,49 @@ namespace Backend.Business
             {
                 _logger.LogError(ex, $"Error getting response: {responseId}");
                 throw new ResponseDataAccessException($"Failed to retrieve response: {responseId}", ex);
+            }
+        }
+
+        public async Task<ResponseListDto> GetResponsesByUserIdAsync(Guid userId, int page, int pageSize)
+        {
+            try
+            {
+                // Check if user owns the form
+                var responses = await _responseDAL.GetResponsesByUserIdAsync(userId, page, pageSize);
+                var totalCount = await _responseDAL.GetResponseCountByUserIdAsync(userId);
+
+                var responseItems = responses.Select(r =>
+                {
+                    var form = _formDAL.GetFormByIdAsync(r.FormId);
+                    return new ResponseItemDto
+                    {
+                        ResponseId = r.ResponseId,
+                        FormId = r.FormId,
+                        FormName = form.Result?.Title,
+                        SubmittedBy = r.SubmittedBy,
+                        SubmitterUsername = r.User?.Username ?? "Unknown",
+                        SubmittedAt = r.SubmittedAt,
+                        AnswerCount = r.Answers?.Count ?? 0
+                    };
+                }).ToList();
+
+                return new ResponseListDto
+                {
+                    Responses = responseItems,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+            }
+            catch (ResponseException)
+            {
+                throw; // Re-throw our custom exceptions
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting responses for user: {userId}");
+                throw new ResponseDataAccessException($"Failed to retrieve responses for user: {userId}", ex);
             }
         }
 

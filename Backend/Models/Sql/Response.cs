@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Backend.Models.Nosql;
 
 namespace Backend.Models.Sql;
 
@@ -24,6 +25,5 @@ public class Response
 
     // Navigation properties
     [ForeignKey("SubmittedBy")] public virtual User User { get; set; }
-
     public virtual ICollection<Answer> Answers { get; set; } = new List<Answer>();
 }

@@ -14,13 +14,15 @@ namespace Backend.Business
     public class FormBL : IFormBL
     {
         private readonly IFormDAL _formDAL;
+        private readonly IUserDAL _userDAL;
         private readonly IResponseDAL _responseDAL;
         private readonly ILogger<FormBL> _logger;
 
-        public FormBL(IFormDAL formDAL, IResponseDAL responseDAL, ILogger<FormBL> logger)
+        public FormBL(IUserDAL userDAL, IFormDAL formDAL, IResponseDAL responseDAL, ILogger<FormBL> logger)
         {
             _formDAL = formDAL;
             _responseDAL = responseDAL;
+            _userDAL = userDAL;
             _logger = logger;
         }
 
@@ -36,15 +38,15 @@ namespace Backend.Business
                     throw new FormValidationException("Form title is required");
                 }
 
-                if (createFormDto.Questions == null || !createFormDto.Questions.Any())
-                {
-                    throw new FormValidationException("At least one question is required");
-                }
+                // if (createFormDto.Questions == null || !createFormDto.Questions.Any())
+                // {
+                //     throw new FormValidationException("At least one question is required");
+                // }
 
                 // Validate options for select type questions
                 foreach (var question in createFormDto.Questions)
                 {
-                    if ((question.Type == "singleSelect" || question.Type == "multiSelect") 
+                    if ((question.Type == "singleSelect" || question.Type == "multiSelect")
                         && (question.Options == null || !question.Options.Any()))
                     {
                         throw new QuestionValidationException($"Options are required for {question.Type} questions");
@@ -94,21 +96,45 @@ namespace Backend.Business
             try
             {
                 // Learners only see published forms, admins see all
-                bool? isPublished = userRole.ToLower() == "learner" ? true : null;
+                bool? isPublished = userRole.Equals("learner", StringComparison.OrdinalIgnoreCase) ? true : null;
+                bool? visibility = userRole.Equals("learner", StringComparison.OrdinalIgnoreCase) ? true : null;
 
-                var forms = await _formDAL.GetAllFormsAsync(page, pageSize, isPublished);
+                // Get forms and total count
+                var forms = await _formDAL.GetAllFormsAsync(page, pageSize, isPublished, visibility);
                 var totalCount = await _formDAL.GetFormCountAsync(isPublished);
 
-                var formItems = forms.Select(f => new FormItemDto
+                var formItems = new List<FormItemDto>();
+
+                // Sequentially process forms to avoid concurrent DbContext usage
+                foreach (var f in forms)
                 {
-                    Id = f.Id,
-                    Title = f.Title,
-                    Description = f.Description,
-                    QuestionCount = f.Questions?.Count ?? 0,
-                    IsPublished = f.IsPublished,
-                    CreatedAt = f.CreatedAt,
-                    CreatedBy = f.CreatedBy
-                }).ToList();
+                    bool hasResponded = false;
+
+                    // Only learners need to check if they've responded
+                    if (userRole.Equals("learner", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasResponded = await _responseDAL.UserHasRespondedToFormAsync(userId, f.Id);
+                    }
+
+                    // Get the user (publisher or creator)
+                    var user = await _userDAL.GetUserByIdAsync((Guid)(f.IsPublished ? f.PublishedBy : f.CreatedBy)!);
+
+                    formItems.Add(new FormItemDto
+                    {
+                        Id = f.Id,
+                        Title = f.Title,
+                        Description = f.Description,
+                        QuestionCount = f.Questions?.Count ?? 0,
+                        IsPublished = f.IsPublished,
+                        CreatedAt = f.CreatedAt,
+                        CreatedBy = f.CreatedBy,
+                        PublisherName = user?.Username,
+                        PublishedBy = f.PublishedBy,
+                        Visibility = f.Visibility,
+                        CreatorName = user?.Username,
+                        Responded = hasResponded
+                    });
+                }
 
                 return new FormListDto
                 {
@@ -125,6 +151,7 @@ namespace Backend.Business
                 throw new FormDataAccessException("Failed to retrieve forms", ex);
             }
         }
+
 
         public async Task<FormDetailDto> GetFormByIdAsync(string formId)
         {
@@ -161,12 +188,6 @@ namespace Backend.Business
                     throw new FormNotFoundException(formId);
                 }
 
-                // Check if user is the creator
-                if (existingForm.CreatedBy != userId)
-                {
-                    throw new FormUnauthorizedException("Only the form creator can update it");
-                }
-
                 // Check if form has responses
                 var responseCount = await _responseDAL.GetResponseCountByFormIdAsync(formId);
                 if (responseCount > 0 && existingForm.IsPublished)
@@ -177,7 +198,7 @@ namespace Backend.Business
                 // Validate options for select type questions
                 foreach (var question in updateFormDto.Questions)
                 {
-                    if ((question.Type == "singleSelect" || question.Type == "multiSelect") 
+                    if ((question.Type == "singleSelect" || question.Type == "multiSelect")
                         && (question.Options == null || !question.Options.Any()))
                     {
                         throw new QuestionValidationException($"Options are required for {question.Type} questions");
@@ -188,6 +209,7 @@ namespace Backend.Business
                 existingForm.Title = updateFormDto.Title;
                 existingForm.Description = updateFormDto.Description;
                 existingForm.HeaderTitle = updateFormDto.HeaderTitle;
+                existingForm.Visibility = updateFormDto.Visibility;
                 existingForm.HeaderDescription = updateFormDto.HeaderDescription;
                 existingForm.Questions = updateFormDto.Questions.Select((q, index) => new Question
                 {
@@ -253,13 +275,31 @@ namespace Backend.Business
                     throw new FormNotFoundException(formId);
                 }
 
-                // Check if user is the creator
-                if (form.CreatedBy != userId)
+                return await _formDAL.PublishFormAsync(formId, userId);
+            }
+            catch (FormException)
+            {
+                throw; // Re-throw our custom exceptions
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error publishing form: {formId}");
+                throw new FormDataAccessException($"Failed to publish form: {formId}", ex);
+            }
+        }
+
+        public async Task<bool> ToggleVisibility(string formId, bool visibility)
+        {
+            try
+            {
+                var form = await _formDAL.GetFormByIdAsync(formId);
+
+                if (form == null)
                 {
-                    throw new FormUnauthorizedException("Only the form creator can publish it");
+                    throw new FormNotFoundException(formId);
                 }
 
-                return await _formDAL.PublishFormAsync(formId, userId);
+                return await _formDAL.ToggleVisibility(formId, visibility);
             }
             catch (FormException)
             {
@@ -284,6 +324,7 @@ namespace Backend.Business
                 IsPublished = form.IsPublished,
                 CreatedBy = form.CreatedBy,
                 PublishedBy = form.PublishedBy,
+                Visibility = form.Visibility,
                 Questions = form.Questions?.Select(q => new QuestionDetailDto
                 {
                     Id = q.Id.ToString(),

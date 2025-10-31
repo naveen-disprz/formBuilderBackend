@@ -20,7 +20,6 @@ public class CreateFormDto
     public string? HeaderDescription { get; set; }
 
     [Required] 
-    [MinLength(1)] 
     public List<QuestionDto> Questions { get; set; } = new();
 }
 
