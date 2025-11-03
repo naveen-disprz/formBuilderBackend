@@ -58,11 +58,11 @@ namespace Backend.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetForms([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetForms([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string searchQuery = "")
         {
             try
             {
-                var result = await _formBL.GetFormsAsync(page, pageSize, CurrentUserRole, CurrentUserId);
+                var result = await _formBL.GetFormsAsync(page, pageSize, searchQuery,CurrentUserRole, CurrentUserId);
                 return Ok(result);
             }
             catch (FormDataAccessException ex)

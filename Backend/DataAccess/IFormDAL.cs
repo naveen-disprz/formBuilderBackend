@@ -11,8 +11,8 @@ public interface IFormDAL
 
     // Read
     Task<Form?> GetFormByIdAsync(string formId);
-    Task<List<Form>> GetAllFormsAsync(int page, int pageSize, bool? isPublished = null, bool? visibility = null);
-    Task<long> GetFormCountAsync(bool? isPublished = null);
+    Task<List<Form>> GetAllFormsAsync(int page, int pageSize, string? searchQuery = "", bool? isPublished = null, bool? visibility = null);
+    Task<long> GetFormCountAsync(int page, int pageSize, string? searchQuery = "",bool? isPublished = null, bool? visibility = null);
 
     // Update
     Task<Form?> UpdateFormAsync(string formId, Form updatedForm);

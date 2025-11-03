@@ -91,7 +91,7 @@ namespace Backend.Business
             }
         }
 
-        public async Task<FormListDto> GetFormsAsync(int page, int pageSize, string userRole, Guid userId)
+        public async Task<FormListDto> GetFormsAsync(int page, int pageSize, string searchQuery, string userRole, Guid userId)
         {
             try
             {
@@ -100,8 +100,8 @@ namespace Backend.Business
                 bool? visibility = userRole.Equals("learner", StringComparison.OrdinalIgnoreCase) ? true : null;
 
                 // Get forms and total count
-                var forms = await _formDAL.GetAllFormsAsync(page, pageSize, isPublished, visibility);
-                var totalCount = await _formDAL.GetFormCountAsync(isPublished);
+                var forms = await _formDAL.GetAllFormsAsync(page, pageSize, searchQuery, isPublished, visibility);
+                var totalCount = await _formDAL.GetFormCountAsync(page, pageSize, searchQuery, isPublished, visibility);
 
                 var formItems = new List<FormItemDto>();
 

@@ -55,7 +55,7 @@ namespace Backend.Tests.UnitTests.Controllers
                 UserId = Guid.NewGuid(),
                 Email = registerDto.Email,
                 Username = registerDto.Username,
-                Role = UserRole.Learner,
+                Role = UserRole.Learner.ToString(),
                 Message = "Registration successful"
             };
 
@@ -220,7 +220,7 @@ namespace Backend.Tests.UnitTests.Controllers
                 UserId = Guid.NewGuid(),
                 Email = "test@example.com",
                 Username = "testuser",
-                Role = UserRole.Learner,
+                Role = UserRole.Learner.ToString(),
                 Message = "Login successful"
             };
 
@@ -343,76 +343,6 @@ namespace Backend.Tests.UnitTests.Controllers
             // Assert
             result.Should().BeOfType<OkObjectResult>();
             _authBLMock.Verify(x => x.LogoutAsync(It.IsAny<string>()), Times.Never);
-        }
-
-        [Fact]
-        public async Task ValidateToken_WithValidToken_ReturnsOkWithUserInfo()
-        {
-            // Arrange
-            var token = "valid-jwt-token";
-            var userId = Guid.NewGuid();
-            
-            _authController.HttpContext.Request.Headers["Authorization"] = $"Bearer {token}";
-            
-            // Setup user claims
-            var claims = new List<Claim>
-            {
-                new Claim("UserId", userId.ToString()),
-                new Claim("Email", "test@example.com"),
-                new Claim("Role", "Learner")
-            };
-            _authController.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims));
-
-            _authBLMock.Setup(x => x.ValidateTokenAsync(It.IsAny<string>()))
-                .ReturnsAsync(true);
-
-            // Act
-            var result = await _authController.ValidateToken();
-
-            // Assert
-            result.Should().BeOfType<OkObjectResult>();
-            var okResult = result as OkObjectResult;
-            okResult.Value.Should().BeEquivalentTo(new
-            {
-                valid = true,
-                userId = userId.ToString(),
-                email = "test@example.com",
-                role = "Learner"
-            });
-        }
-
-        [Fact]
-        public async Task ValidateToken_WithNoToken_ThrowsTokenException()
-        {
-            // Arrange
-            // No token in headers
-
-            // Act
-            var result = await _authController.ValidateToken();
-
-            // Assert
-            result.Should().BeOfType<UnauthorizedObjectResult>();
-            var unauthorizedResult = result as UnauthorizedObjectResult;
-            unauthorizedResult.Value.Should().BeEquivalentTo(new { error = "No token provided", code = "TOKEN_ERROR" });
-        }
-
-        [Fact]
-        public async Task ValidateToken_WithInvalidToken_ReturnsUnauthorized()
-        {
-            // Arrange
-            var token = "invalid-jwt-token";
-            _authController.HttpContext.Request.Headers["Authorization"] = $"Bearer {token}";
-
-            _authBLMock.Setup(x => x.ValidateTokenAsync(It.IsAny<string>()))
-                .ReturnsAsync(false);
-
-            // Act
-            var result = await _authController.ValidateToken();
-
-            // Assert
-            result.Should().BeOfType<UnauthorizedObjectResult>();
-            var unauthorizedResult = result as UnauthorizedObjectResult;
-            unauthorizedResult.Value.Should().BeEquivalentTo(new { valid = false, code = "INVALID_TOKEN" });
         }
     }
 

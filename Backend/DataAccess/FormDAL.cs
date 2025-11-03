@@ -61,7 +61,11 @@ namespace Backend.DataAccess
             }
         }
 
-        public async Task<List<Form>> GetAllFormsAsync(int page, int pageSize, bool? isPublished = null,
+        public async Task<List<Form>> GetAllFormsAsync(
+            int page,
+            int pageSize,
+            string? searchQuery,
+            bool? isPublished = null,
             bool? visibility = null)
         {
             try
@@ -69,18 +73,31 @@ namespace Backend.DataAccess
                 var filterBuilder = Builders<Form>.Filter;
                 var filter = filterBuilder.Eq(f => f.IsDeleted, false);
 
+                // Apply published filter
                 if (isPublished.HasValue)
                 {
-                    filter = filterBuilder.And(filter,
-                        filterBuilder.Eq(f => f.IsPublished, isPublished.Value));
+                    filter &= filterBuilder.Eq(f => f.IsPublished, isPublished.Value);
                 }
 
+                // Apply visibility filter
                 if (visibility.HasValue)
                 {
-                    filter = filterBuilder.And(filter,
-                        filterBuilder.Eq(f => f.Visibility, visibility.Value));
+                    filter &= filterBuilder.Eq(f => f.Visibility, visibility.Value);
                 }
-                
+
+                // ✅ Apply search filter (Title or Description)
+                if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    var searchFilter = filterBuilder.Or(
+                        filterBuilder.Regex(f => f.Title,
+                            new BsonRegularExpression(searchQuery, "i")), // case-insensitive
+                        filterBuilder.Regex(f => f.Description, new BsonRegularExpression(searchQuery, "i"))
+                    );
+
+                    filter &= searchFilter;
+                }
+
+                // Query MongoDB
                 return await _forms.Find(filter)
                     .SortByDescending(f => f.CreatedAt)
                     .Skip((page - 1) * pageSize)
@@ -94,7 +111,11 @@ namespace Backend.DataAccess
             }
         }
 
-        public async Task<long> GetFormCountAsync(bool? isPublished = null)
+        public async Task<long> GetFormCountAsync(
+            int page,
+            int pageSize,
+            string? searchQuery,
+            bool? isPublished = null, bool? visibility = null)
         {
             try
             {
@@ -106,8 +127,28 @@ namespace Backend.DataAccess
                     filter = filterBuilder.And(filter,
                         filterBuilder.Eq(f => f.IsPublished, isPublished.Value));
                 }
+                
+                if (visibility.HasValue)
+                {
+                    filter &= filterBuilder.Eq(f => f.Visibility, visibility.Value);
+                }
+                
+                if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    var searchFilter = filterBuilder.Or(
+                        filterBuilder.Regex(f => f.Title,
+                            new BsonRegularExpression(searchQuery, "i")), // case-insensitive
+                        filterBuilder.Regex(f => f.Description, new BsonRegularExpression(searchQuery, "i"))
+                    );
 
-                return await _forms.CountDocumentsAsync(filter);
+                    filter &= searchFilter;
+                }
+
+                // return await _forms.CountDocumentsAsync(filter);
+                return await _forms.Find(filter)
+                    .SortByDescending(f => f.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Limit(pageSize).CountDocumentsAsync();
             }
             catch (Exception ex)
             {

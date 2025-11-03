@@ -209,7 +209,7 @@ namespace Backend.Tests.UnitTests.Controllers
                 TotalPages = 1
             };
 
-            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), 
+            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<Guid>()))
                 .ReturnsAsync(formListDto);
 
@@ -227,7 +227,7 @@ namespace Backend.Tests.UnitTests.Controllers
             // Arrange
             var exception = new FormDataAccessException("Database error", new Exception());
 
-            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), 
+            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<Guid>()))
                 .ThrowsAsync(exception);
 
@@ -638,7 +638,7 @@ namespace Backend.Tests.UnitTests.Controllers
         public async Task GetForms_WhenUnexpectedExceptionOccurs_ReturnsInternalServerError()
         {
             // Arrange
-            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), 
+            _formBLMock.Setup(x => x.GetFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<Guid>()))
                 .ThrowsAsync(new Exception("Unexpected error"));
 

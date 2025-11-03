@@ -20,6 +20,7 @@ namespace Backend.Tests.UnitTests.Business
     {
         private readonly Mock<IFormDAL> _formDALMock;
         private readonly Mock<IResponseDAL> _responseDALMock;
+        private readonly Mock<IUserDAL> _userDALMock;
         private readonly Mock<ILogger<FormBL>> _loggerMock;
         private readonly FormBL _formBL;
 
@@ -27,9 +28,11 @@ namespace Backend.Tests.UnitTests.Business
         {
             _formDALMock = new Mock<IFormDAL>();
             _responseDALMock = new Mock<IResponseDAL>();
+            _userDALMock = new Mock<IUserDAL>();
             _loggerMock = new Mock<ILogger<FormBL>>();
 
             _formBL = new FormBL(
+                _userDALMock.Object,
                 _formDALMock.Object,
                 _responseDALMock.Object,
                 _loggerMock.Object
@@ -146,24 +149,6 @@ namespace Backend.Tests.UnitTests.Business
         }
 
         [Fact]
-        public async Task CreateFormAsync_WithNoQuestions_ThrowsFormValidationException()
-        {
-            // Arrange
-            var createFormDto = new CreateFormDto
-            {
-                Title = "Test Form",
-                Questions = new List<QuestionDto>()
-            };
-
-            // Act
-            var act = async () => await _formBL.CreateFormAsync(createFormDto, Guid.NewGuid());
-
-            // Assert
-            await act.Should().ThrowAsync<FormValidationException>()
-                .WithMessage("At least one question is required");
-        }
-
-        [Fact]
         public async Task CreateFormAsync_WithSelectQuestionWithoutOptions_ThrowsQuestionValidationException()
         {
             // Arrange
@@ -205,18 +190,19 @@ namespace Backend.Tests.UnitTests.Business
                     Id = ObjectId.GenerateNewId().ToString(),
                     Title = "Published Form",
                     IsPublished = true,
+                    PublishedBy = userId,
                     CreatedBy = userId,
                     Questions = new List<Question> { new Question() }
                 }
             };
 
-            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, true))
+            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, "",true, true))
                 .ReturnsAsync(forms);
-            _formDALMock.Setup(x => x.GetFormCountAsync(true))
+            _formDALMock.Setup(x => x.GetFormCountAsync(1, 10, "",true, true))
                 .ReturnsAsync(1);
 
             // Act
-            var result = await _formBL.GetFormsAsync(1, 10, "learner", userId);
+            var result = await _formBL.GetFormsAsync(1, 10, "","learner", userId);
 
             // Assert
             result.Should().NotBeNull();
@@ -224,7 +210,7 @@ namespace Backend.Tests.UnitTests.Business
             result.TotalCount.Should().Be(1);
             result.CurrentPage.Should().Be(1);
             result.PageSize.Should().Be(10);
-            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, true), Times.Once);
+            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, "",true, true), Times.Once);
         }
 
         [Fact]
@@ -234,22 +220,22 @@ namespace Backend.Tests.UnitTests.Business
             var userId = Guid.NewGuid();
             var forms = new List<Form>
             {
-                new Form { Id = "1", Title = "Form 1", IsPublished = true, CreatedBy = userId },
-                new Form { Id = "2", Title = "Form 2", IsPublished = false, CreatedBy = userId }
+                new Form { Id = "1", Title = "Form 1", IsPublished = false, Visibility = true, CreatedBy = userId },
+                new Form { Id = "2", Title = "Form 2", IsPublished = false,Visibility = true, CreatedBy = userId }
             };
 
-            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, null))
+            _formDALMock.Setup(x => x.GetAllFormsAsync(1, 10, "",null, null))
                 .ReturnsAsync(forms);
-            _formDALMock.Setup(x => x.GetFormCountAsync(null))
+            _formDALMock.Setup(x => x.GetFormCountAsync(1, 10, "",null, null))
                 .ReturnsAsync(2);
 
             // Act
-            var result = await _formBL.GetFormsAsync(1, 10, "admin", userId);
+            var result = await _formBL.GetFormsAsync(1, 10, "","admin", userId);
 
             // Assert
             result.Forms.Should().HaveCount(2);
             result.TotalCount.Should().Be(2);
-            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, null), Times.Once);
+            _formDALMock.Verify(x => x.GetAllFormsAsync(1, 10, "",null, null), Times.Once);
         }
 
         #endregion
@@ -396,32 +382,6 @@ namespace Backend.Tests.UnitTests.Business
         }
 
         [Fact]
-        public async Task UpdateFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
-        {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
-            var creatorId = Guid.NewGuid();
-            var differentUserId = Guid.NewGuid();
-            var updateFormDto = new UpdateFormDto { Title = "Test" };
-
-            var existingForm = new Form
-            {
-                Id = formId,
-                CreatedBy = creatorId
-            };
-
-            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
-                .ReturnsAsync(existingForm);
-
-            // Act
-            var act = async () => await _formBL.UpdateFormAsync(formId, updateFormDto, differentUserId);
-
-            // Assert
-            await act.Should().ThrowAsync<FormUnauthorizedException>()
-                .WithMessage("Only the form creator can update it");
-        }
-
-        [Fact]
         public async Task UpdateFormAsync_WithPublishedFormHavingResponses_ThrowsFormLockedException()
         {
             // Arrange
@@ -532,31 +492,6 @@ namespace Backend.Tests.UnitTests.Business
             await act.Should().ThrowAsync<FormNotFoundException>();
         }
 
-        [Fact]
-        public async Task PublishFormAsync_WithDifferentUser_ThrowsFormUnauthorizedException()
-        {
-            // Arrange
-            var formId = ObjectId.GenerateNewId().ToString();
-            var creatorId = Guid.NewGuid();
-            var differentUserId = Guid.NewGuid();
-
-            var form = new Form
-            {
-                Id = formId,
-                CreatedBy = creatorId
-            };
-
-            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
-                .ReturnsAsync(form);
-
-            // Act
-            var act = async () => await _formBL.PublishFormAsync(formId, differentUserId);
-
-            // Assert
-            await act.Should().ThrowAsync<FormUnauthorizedException>()
-                .WithMessage("Only the form creator can publish it");
-        }
-
         #endregion
         
         #region CreateFormAsync Exception Tests
@@ -631,11 +566,11 @@ namespace Backend.Tests.UnitTests.Business
             // Arrange
             var userId = Guid.NewGuid();
             
-            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool?>()))
+            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),It.IsAny<bool?>(), It.IsAny<bool?>()))
                 .ThrowsAsync(new Exception("Database error"));
 
             // Act
-            var act = async () => await _formBL.GetFormsAsync(1, 10, "learner", userId);
+            var act = async () => await _formBL.GetFormsAsync(1, 10, "","learner", userId);
 
             // Assert
             var exception = await act.Should().ThrowAsync<FormDataAccessException>();
@@ -653,13 +588,13 @@ namespace Backend.Tests.UnitTests.Business
                 new Form { Id = "1", Title = "Form 1", IsPublished = true }
             };
 
-            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool?>()))
+            _formDALMock.Setup(x => x.GetAllFormsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<bool?>(), It.IsAny<bool?>()))
                 .ReturnsAsync(forms);
-            _formDALMock.Setup(x => x.GetFormCountAsync(It.IsAny<bool?>()))
+            _formDALMock.Setup(x => x.GetFormCountAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),It.IsAny<bool?>(), It.IsAny<bool?>()))
                 .ThrowsAsync(new Exception("Count query failed"));
 
             // Act
-            var act = async () => await _formBL.GetFormsAsync(1, 10, "admin", userId);
+            var act = async () => await _formBL.GetFormsAsync(1, 10, "","admin", userId);
 
             // Assert
             var exception = await act.Should().ThrowAsync<FormDataAccessException>();

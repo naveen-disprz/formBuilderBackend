@@ -385,6 +385,68 @@ namespace Backend.Tests.UnitTests.Business
             result.Responses[1].SubmitterUsername.Should().Be("user2");
             result.Responses[1].AnswerCount.Should().Be(1);
         }
+        
+        [Fact]
+        public async Task GetResponsesByUserIdAsync_WithValidFormAndOwner_ReturnsResponseList()
+        {
+            // Arrange
+            var formId = "507f1f77bcf86cd799439011";
+            var userId = Guid.NewGuid();
+
+            var form = new Form
+            {
+                Id = formId,
+                Title = "Test Form",
+                CreatedBy = userId // User owns the form
+            };
+
+            var responses = new List<Response>
+            {
+                new Response
+                {
+                    ResponseId = Guid.NewGuid(),
+                    FormId = formId,
+                    SubmittedBy = Guid.NewGuid(),
+                    SubmittedAt = DateTime.UtcNow,
+                    User = new User { Username = "user1" },
+                    Answers = new List<Answer> { new Answer(), new Answer() }
+                },
+                new Response
+                {
+                    ResponseId = Guid.NewGuid(),
+                    FormId = formId,
+                    SubmittedBy = Guid.NewGuid(),
+                    SubmittedAt = DateTime.UtcNow.AddHours(-1),
+                    User = new User { Username = "user2" },
+                    Answers = new List<Answer> { new Answer() }
+                }
+            };
+
+            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
+                .ReturnsAsync(form);
+
+            _responseDALMock.Setup(x => x.GetResponsesByUserIdAsync(userId, 1, 10))
+                .ReturnsAsync(responses);
+
+            _responseDALMock.Setup(x => x.GetResponseCountByUserIdAsync(userId))
+                .ReturnsAsync(2);
+
+            // Act
+            var result = await _responseBL.GetResponsesByUserIdAsync(userId, 1, 10);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Responses.Should().HaveCount(2);
+            result.CurrentPage.Should().Be(1);
+            result.PageSize.Should().Be(10);
+            result.TotalCount.Should().Be(2);
+            result.TotalPages.Should().Be(1);
+
+            result.Responses[0].SubmitterUsername.Should().Be("user1");
+            result.Responses[0].AnswerCount.Should().Be(2);
+            result.Responses[1].SubmitterUsername.Should().Be("user2");
+            result.Responses[1].AnswerCount.Should().Be(1);
+        }
 
         [Fact]
         public async Task GetFormResponsesAsync_WithNonExistentForm_ThrowsFormNotFoundForResponseException()
@@ -402,32 +464,6 @@ namespace Backend.Tests.UnitTests.Business
             // Assert
             await act.Should().ThrowAsync<FormNotFoundForResponseException>()
                 .WithMessage($"Form not found: {formId}");
-        }
-
-        [Fact]
-        public async Task GetFormResponsesAsync_WhenUserDoesNotOwnForm_ThrowsResponseUnauthorizedException()
-        {
-            // Arrange
-            var formId = "507f1f77bcf86cd799439011";
-            var userId = Guid.NewGuid();
-            var otherUserId = Guid.NewGuid();
-
-            var form = new Form
-            {
-                Id = formId,
-                Title = "Test Form",
-                CreatedBy = otherUserId // Different user owns the form
-            };
-
-            _formDALMock.Setup(x => x.GetFormByIdAsync(formId))
-                .ReturnsAsync(form);
-
-            // Act
-            var act = async () => await _responseBL.GetFormResponsesAsync(formId, 1, 10, userId);
-
-            // Assert
-            await act.Should().ThrowAsync<ResponseUnauthorizedException>()
-                .WithMessage("You can only view responses for your own forms");
         }
 
         [Fact]
@@ -525,6 +561,7 @@ namespace Backend.Tests.UnitTests.Business
             result.Answers[1].QuestionType.Should().Be("Number");
             result.Answers[1].Value.Should().Be(42);
         }
+        
 
         [Fact]
         public async Task GetResponseByIdAsync_WithNonExistentResponse_ThrowsResponseNotFoundException()

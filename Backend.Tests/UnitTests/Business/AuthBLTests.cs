@@ -80,7 +80,7 @@ namespace Backend.Tests.UnitTests.Business
             result.Token.Should().Be("jwt-token");
             result.Email.Should().Be(createdUser.Email);
             result.Username.Should().Be(createdUser.Username);
-            result.Role.Should().Be(UserRole.Learner);
+            result.Role.Should().Be(UserRole.Learner.ToString());
             result.Message.Should().Be("Registration successful");
         }
 
@@ -214,7 +214,7 @@ namespace Backend.Tests.UnitTests.Business
             result.Token.Should().Be("jwt-token");
             result.Email.Should().Be(user.Email);
             result.Username.Should().Be(user.Username);
-            result.Role.Should().Be(UserRole.Admin);
+            result.Role.Should().Be(UserRole.Admin.ToString());
             result.Message.Should().Be("Login successful");
         }
 

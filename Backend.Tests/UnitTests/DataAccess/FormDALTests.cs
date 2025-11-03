@@ -162,7 +162,7 @@ namespace Backend.Tests.UnitTests.DataAccess
                 .ThrowsAsync(exception);
 
             // Act
-            var act = async () => await _formDAL.GetAllFormsAsync(0, 10, true);
+            var act = async () => await _formDAL.GetAllFormsAsync(0, 10, "",true);
 
             // Assert
             await act.Should().ThrowAsync<FormDataAccessException>()
@@ -197,7 +197,7 @@ namespace Backend.Tests.UnitTests.DataAccess
                 .ReturnsAsync(mockCursor.Object);
 
             // Act
-            var result = await _formDAL.GetAllFormsAsync(1, 10, true);
+            var result = await _formDAL.GetAllFormsAsync(1, 10, "",true);
 
             // Assert
             result.Should().NotBeNull();
@@ -217,7 +217,7 @@ namespace Backend.Tests.UnitTests.DataAccess
                 .ReturnsAsync(5);
 
             // Act
-            var result = await _formDAL.GetFormCountAsync(true);
+            var result = await _formDAL.GetFormCountAsync(1, 10, "",true);
 
             // Assert
             result.Should().Be(5);
@@ -501,7 +501,7 @@ namespace Backend.Tests.UnitTests.DataAccess
                 .ThrowsAsync(exception);
 
             // Act
-            var act = async () => await _formDAL.GetFormCountAsync();
+            var act = async () => await _formDAL.GetFormCountAsync(1, 10, "",true);
 
             // Assert
             await act.Should().ThrowAsync<FormDataAccessException>();
